@@ -10,4 +10,5 @@ C3Dserver x64 edition (for Windows x64 platforms) installation: https://www.c3ds
 - SciPy: ([Website](https://www.scipy.org/))
 
 ## Acknowledgement
-[Motion Lab Systems, Inc.](https://www.motion-labs.com/) for C3Dserver free version
+- [C3D.ORG](https://www.c3d.org/)
+- [Motion Lab Systems, Inc.](https://www.motion-labs.com/) for C3Dserver free version
