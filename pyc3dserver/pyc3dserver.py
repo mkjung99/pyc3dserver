@@ -3,6 +3,7 @@ import win32com.client as win32
 import numpy as np
 import pandas as pd
 from scipy.interpolate import InterpolatedUnivariateSpline
+import logging
 
 def c3dserver():
     """
@@ -31,7 +32,7 @@ def c3dserver():
     print(itf.GetRegUserOrganization())
     return itf
 
-def open_c3d(itf, f_path: str):
+def open_c3d(itf, f_path, logger_name=None):
     """
     Open a C3D file.
 
@@ -48,6 +49,8 @@ def open_c3d(itf, f_path: str):
         0 if the file is opened successfully or 1 if it could not be opened.
 
     """
+    if logger_name is not None:
+        logging.getLogger(logger_name).info(f'Opening a C3D file.')
     return itf.Open(f_path, 3)
 
 def save_c3d(itf, f_path = '', f_type = -1):
@@ -627,7 +630,7 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
     mkr_name : str
         Marker name.
     blocked_nan : bool, optional
-        Whether to set the coordinates of blocked frames as nan. The default is True.
+        Whether to set the coordinates of blocked frames as nan. The default is False.
     start_frame: None or int, optional
         User-defined start frame.
     end_frame: None or int, optional
@@ -936,7 +939,7 @@ def get_dict_markers(itf, blocked_nan=False, residual=False, mask=False, time=Fa
             if mask:
                 mkr_mask = np.array(itf.GetPointMaskEx(i, start_fr, end_fr), dtype=str)
                 dict_pts['DATA']['MASK'].update({mkr_name: mkr_mask})
-    dict_pts.update({'LABELS': mkr_names})
+    dict_pts.update({'LABELS': np.array(mkr_names, dtype=str)})
     idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
     if idx_pt_units != -1:
         n_pt_units = itf.GetParameterLength(idx_pt_units)
@@ -989,11 +992,11 @@ def get_dict_forces(itf, time=False, start_frame=None, end_frame=None, msg=False
         ch_unit = itf.GetParameterValue(idx_analog_units, ch_idx)
         force_units.append(ch_unit)
         sig_scale = np.float32(itf.GetParameterValue(idx_analog_scale, ch_idx))
-        sig_offset = offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx))
-        sig_val = (np.array(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-np.float32(sig_offset))*sig_scale*gen_scale
+        sig_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx)))
+        sig_val = (np.array(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
         dict_forces['DATA'].update({ch_name: sig_val})
-    dict_forces.update({'LABELS': force_names})
-    dict_forces.update({'UNITS': force_units})
+    dict_forces.update({'LABELS': np.array(force_names, dtype=str)})
+    dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
     idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
     if idx_analog_rate != -1:
         n_analog_rate = itf.GetParameterLength(idx_analog_rate)
@@ -1292,8 +1295,8 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, msg
     if not fr_check: return None
     gen_scale = get_analog_gen_scale(itf)
     sig_scale = get_analog_scale(itf, sig_name)
-    sig_offset = get_analog_offset(itf, sig_name)
-    sig = (np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-np.float32(sig_offset))*sig_scale*gen_scale
+    sig_offset = np.float32(get_analog_offset(itf, sig_name))
+    sig = (np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
     return sig
 
 def change_marker_name(itf, mkr_name_old, mkr_name_new, msg=False):
@@ -1607,11 +1610,11 @@ def update_marker_residual(itf, mkr_name, mkr_resid, msg=False):
     return [False, True][ret]
 
 def set_marker_pos(itf, mkr_name, start_frame, mkr_coords, msg=False):  
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
-    if mkr_idx == -1: return False
     if mkr_coords.ndim != 2:
         if msg: print("The dimension of the input is not compatible!")
-        return False
+        return False    
+    mkr_idx = get_marker_index(itf, mkr_name, msg)
+    if mkr_idx == -1: return False
     dtype = pythoncom.VT_R4
     dtype_arr = pythoncom.VT_ARRAY|dtype
     for i in range(3):
@@ -1625,11 +1628,11 @@ def set_marker_pos(itf, mkr_name, start_frame, mkr_coords, msg=False):
     return [False, True][ret]
 
 def set_marker_residual(itf, mkr_name, start_frame, mkr_resid, msg=False):
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
-    if mkr_idx == -1: return False
     if mkr_resid.ndim != 1:
         if msg: print("The dimension of the input is not compatible!")
         return False
+    mkr_idx = get_marker_index(itf, mkr_name, msg)
+    if mkr_idx == -1: return False
     dtype = pythoncom.VT_R4
     dtype_arr = pythoncom.VT_ARRAY|dtype
     variant = win32.VARIANT(dtype_arr, mkr_resid)
@@ -1713,14 +1716,6 @@ def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, msg=False):
     tgt_mkr_resid[cl_mkr_only_valid_mask] = 0.0
     update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, msg=msg)
     update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, msg=msg)
-    # gaps = np.split(cl_mkr_only_valid_frs, np.where(np.diff(cl_mkr_only_valid_frs)!=1)[0]+1)
-    # start_fr = get_first_frame(itf)
-    # for gap in gaps:
-    #     gap_mkr_coords = tgt_mkr_coords[gap,:]
-    #     gap_mkr_resid = tgt_mkr_resid[gap]
-    #     g_s_fr = start_fr+gap[0]
-    #     set_marker_pos(itf, tgt_mkr_name, g_s_fr, gap_mkr_coords, msg=msg)
-    #     set_marker_residual(itf, tgt_mkr_name, g_s_fr, gap_mkr_resid, msg=msg)
     n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
     if msg: print("Updated.")
     return True, n_tgt_mkr_valid_frs_updated
@@ -1816,10 +1811,6 @@ def fill_marker_gap_rigidbody(itf, tgt_mkr_name, cl_mkr_names, msg=False):
         U, S, Vt = np.linalg.svd(C)
         R = np.dot(U, np.dot(np.diag([1, 1, np.linalg.det(np.dot(U, Vt))]), Vt))
         L = B.mean(0)-np.dot(R, A.mean(0))
-        # err_vec = np.zeros(A.shape, dtype=np.float)
-        # for i in range(A.shape[0]):
-        #     Bp = np.dot(R, A[i,:])+L
-        #     err_vec[i,:] = Bp-B[i,:]
         err_vec = np.dot(R, A.T).T+L-B
         err_norm = np.linalg.norm(err_vec, axis=1)
         mean_err_norm = np.mean(err_norm)
