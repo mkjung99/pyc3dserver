@@ -1,2 +1,2 @@
-# pyc3dserver
+# PyC3Dserver
 Python interface for C3Dserver module
