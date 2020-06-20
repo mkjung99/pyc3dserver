@@ -80,19 +80,19 @@ def c3dserver():
 
     """
     # itf = win32.Dispatch('C3DServer.C3D')
-    print("========================================")
+    print('========================================')
     itf = win32.dynamic.Dispatch('C3DServer.C3D')
     reg_mode = itf.GetRegistrationMode()
     if reg_mode == 0:
-        print("Unregistered C3Dserver")
+        print('Unregistered C3Dserver')
     elif reg_mode == 1:
-        print("Evaluation C3Dserver")
+        print('Evaluation C3Dserver')
     elif reg_mode == 2:
-        print("Registered C3Dserver")
-    print("Version: ", itf.GetVersion())
-    print("User: ", itf.GetRegUserName())
-    print("Organization: ", itf.GetRegUserOrganization())
-    print("========================================")
+        print('Registered C3Dserver')
+    print('Version: ', itf.GetVersion())
+    print('User: ', itf.GetRegUserName())
+    print('Organization: ', itf.GetRegUserOrganization())
+    print('========================================')
     return itf
 
 def open_c3d(itf, f_path, log=False):
@@ -353,7 +353,7 @@ def get_num_frames(itf):
     """
     return np.int32(get_last_frame(itf)-get_first_frame(itf)+1)
 
-def check_frame_range_valid(itf, start_frame, end_frame, msg=False):
+def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
     """
     Check the validity of input start and end frames.
 
@@ -365,17 +365,17 @@ def check_frame_range_valid(itf, start_frame, end_frame, msg=False):
         Input start frame.
     end_frame : int or None
         Int end frame.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
     bool
-        DESCRIPTION.
-    TYPE
-        DESCRIPTION.
-    TYPE
-        DESCRIPTION.
+        True or False.
+    int
+        Valid start frame.
+    int
+        Valid end frame.
 
     """
     first_fr = get_first_frame(itf)
@@ -384,18 +384,18 @@ def check_frame_range_valid(itf, start_frame, end_frame, msg=False):
         start_fr = first_fr
     else:
         if start_frame < first_fr:
-            if msg: print(f"'start_frame' should be equal or greater than {first_fr}!")
+            if log: logger.warning(f'"start_frame" should be equal or greater than {first_fr}!')
             return False, None, None
         start_fr = start_frame
     if end_frame is None:
         end_fr = last_fr
     else:
         if end_frame > last_fr:
-            if msg: print(f"'end_frame' should be equal or less than {last_fr}!")
+            if log: logger.warning(f'"end_frame" should be equal or less than {last_fr}!')
             return False, None, None
         end_fr = end_frame
     if not (start_fr < end_fr):
-        if msg: print(f"Please provide a correct combination of 'start_frame' and 'end_frame'!")
+        if log: logger.warning(f'Please provide a correct combination of "start_frame" and "end_frame"!')
         return False, None, None
     return True, start_fr, end_fr    
 
@@ -501,6 +501,8 @@ def get_video_times(itf, from_zero=True):
     ----------
     itf : win32com.client.CDispatch
         COM interface of the C3DServer.
+    from_zero : bool, optional
+        Whether the return time array should start from zero or not. The default is True.
 
     Returns
     -------
@@ -583,7 +585,7 @@ def get_analog_times_subset(itf, sel_masks):
     """
     return get_analog_times(itf)[sel_masks]
 
-def get_marker_names(itf):
+def get_marker_names(itf, log=False):
     """
     Return a string-type list of the marker names from an open C3D file.
 
@@ -591,7 +593,9 @@ def get_marker_names(itf):
     ----------
     itf : win32com.client.CDispatch
         COM interface of the C3DServer.
-
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+    
     Returns
     -------
     mkr_names : list or None
@@ -602,19 +606,27 @@ def get_marker_names(itf):
     """
     mkr_names = []
     idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-    if idx_pt_labels == -1: return None
+    if idx_pt_labels == -1:
+        if log: logger.debug('No POINT:LABELS parameter!')
+        return None
     n_pt_labels = itf.GetParameterLength(idx_pt_labels)
-    if n_pt_labels < 1: return None
+    if n_pt_labels < 1:
+        if log: logger.debug('No item under POINT:LABELS parameter!')
+        return None
     idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-    if idx_pt_used == -1: return None
+    if idx_pt_used == -1:
+        if log: logger.debug('No POINT:USED parameter!')
+        return None
     n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
-    if n_pt_used < 1: return None
+    if n_pt_used < 1:
+        if log: logger.debug('POINT:USED value seems to be zero!')
+        return None
     for i in range(n_pt_labels):
         if i < n_pt_used:
             mkr_names.append(itf.GetParameterValue(idx_pt_labels, i))
     return mkr_names
 
-def get_marker_index(itf, mkr_name, msg=False):
+def get_marker_index(itf, mkr_name, log=False):
     """
     Return the index of given marker name in an open C3D file.
 
@@ -624,8 +636,8 @@ def get_marker_index(itf, mkr_name, msg=False):
         COM interface of the C3DServer.
     mkr_name : str
         Marker name.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -637,13 +649,21 @@ def get_marker_index(itf, mkr_name, msg=False):
 
     """
     idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-    if idx_pt_labels == -1: return None
+    if idx_pt_labels == -1:
+        if log: logger.debug('No POINT:LABELS parameter!')
+        return None
     n_pt_labels = itf.GetParameterLength(idx_pt_labels)
-    if n_pt_labels < 1: return None
+    if n_pt_labels < 1:
+        if log: logger.debug('No item under POINT:LABELS parameter!')
+        return None
     idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-    if idx_pt_used == -1: return None
+    if idx_pt_used == -1:
+        if log: logger.debug('No POINT:USED parameter!')
+        return None
     n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
-    if n_pt_used < 1: return None
+    if n_pt_used < 1:
+        if log: logger.debug('POINT:USED value seems to be zero!')
+        return None
     mkr_idx = -1
     for i in range(n_pt_labels):
         if i < n_pt_used:
@@ -652,10 +672,10 @@ def get_marker_index(itf, mkr_name, msg=False):
                 mkr_idx = i
                 break  
     if mkr_idx == -1:
-        if msg: print("There is no %s marker in this C3D file!" % mkr_name)
+        if log: logger.debug(f'No "{mkr_name}" marker exists!')
     return mkr_idx
 
-def get_marker_unit(itf):
+def get_marker_unit(itf, log=False):
     """
     Return the unit of the marker coordinate values in an open C3D file.
 
@@ -663,6 +683,8 @@ def get_marker_unit(itf):
     ----------
     itf : win32com.client.CDispatch
         COM interface of the C3DServer.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -673,13 +695,17 @@ def get_marker_unit(itf):
 
     """
     idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
-    if idx_pt_units == -1: return None
+    if idx_pt_units == -1: 
+        if log: logger.debug('No POINT:UNITS parameter!')
+        return None
     n_items = itf.GetParameterLength(idx_pt_units)
-    if n_items < 1: return None
+    if n_items < 1: 
+        if log: logger.debug('No item under POINT:UNITS parameter!')
+        return None
     unit = itf.GetParameterValue(idx_pt_units, n_items-1)
     return unit
 
-def get_marker_scale(itf):
+def get_marker_scale(itf, log=False):
     """
     Return the marker scale in an open C3D file.
 
@@ -687,6 +713,8 @@ def get_marker_scale(itf):
     ----------
     itf : win32com.client.CDispatch
         COM interface of the C3DServer.
+    log : bool, optional
+        Whether to write logs or not. The default is False.         
 
     Returns
     -------
@@ -697,13 +725,17 @@ def get_marker_scale(itf):
     
     """
     idx_pt_scale = itf.GetParameterIndex('POINT', 'SCALE')
-    if idx_pt_scale == -1: return None
+    if idx_pt_scale == -1:
+        if log: logger.debug('No POINT:SCALE parameter!')
+        return None
     n_items = itf.GetParameterLength(idx_pt_scale)
-    if n_items < 1: return None
+    if n_items < 1:
+        if log: logger.debug('No item under POINT:SCALE parameter!')
+        return None
     scale = np.float32(itf.GetParameterValue(idx_pt_scale, n_items-1))
     return scale
 
-def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_frame=None, msg=False):
+def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_frame=None, log=False):
     """
     Return the scaled marker coordinate values and the residuals in an open C3D file.
 
@@ -719,8 +751,8 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
         User-defined start frame.
     end_frame: None or int, optional
         User-defined end frame.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.        
+    log : bool, optional
+        Whether to write logs or not. The default is False.         
 
     Returns
     -------
@@ -731,9 +763,9 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
         None if there is no corresponding marker name in the C3D file.
         
     """
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
+    mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     n_frs = end_fr-start_fr+1
     mkr_data = np.full((n_frs, 4), np.nan, dtype=np.float32)
@@ -745,9 +777,9 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
         mkr_data[mkr_null_masks,0:3] = np.nan 
     return mkr_data
 
-def get_marker_pos(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=None, end_frame=None, msg=False):
+def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=None, end_frame=None, log=False):
     """
-    Return the scaled marker coordinate values in an open C3D file.
+    Return a specific marker's coordinate values in an open C3D file.
 
     Parameters
     ----------
@@ -755,16 +787,16 @@ def get_marker_pos(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=No
         COM interface of the C3DServer.
     mkr_name : str
         Marker name.
-    scaled : bool, optional
-        Whether to return the scaled coordinate values or not. The default is True.
     blocked_nan : bool, optional
         Whether to set the coordinates of blocked frames as nan. The default is False.
+    scaled : bool, optional
+        Whether to return the scaled coordinate values or not. The default is True.        
     start_frame: None or int, optional
         User-defined start frame.
     end_frame: None or int, optional
         User-defined end frame.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.        
+    log : bool, optional
+        Whether to write logs or not. The default is False.           
 
     Returns
     -------
@@ -778,16 +810,16 @@ def get_marker_pos(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=No
     This is a wrapper function of GetPointDataEx() in the C3DServer SDK with 'byScaled' parameter as 1.
     
     """
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
+    mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     n_frs = end_fr-start_fr+1
     mkr_scale = get_marker_scale(itf)
     is_c3d_float = mkr_scale < 0
     is_c3d_float2 = [False, True][itf.GetDataType()-1]
     if is_c3d_float != is_c3d_float2:
-        if msg: print(f"C3D data type is determined by the POINT:SCALE parameter.")
+        if log: logger.debug(f'C3D data type is determined by POINT:SCALE parameter.')
     mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
     mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
     b_scaled = ['0', '1'][scaled]
@@ -799,9 +831,9 @@ def get_marker_pos(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=No
         mkr_data[mkr_null_masks,:] = np.nan  
     return mkr_data
 
-def get_marker_pos2(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=None, end_frame=None, msg=False):
+def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=None, end_frame=None, log=False):
     """
-    Return the scaled marker coordinate values in an open C3D file.
+    Return a specific marker's coordinate values in an open C3D file.
 
     Parameters
     ----------
@@ -809,16 +841,16 @@ def get_marker_pos2(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=N
         COM interface of the C3DServer.
     mkr_name : str
         Marker name.
-    scaled : bool, optional
-        Whether to return the scaled coordinate values or not. The default is True.        
     blocked_nan : bool, optional
-        Whether to set the coordinates of blocked frames as nan. The default is False.
+        Whether to set the coordinates of blocked frames as nan. The default is False.        
+    scaled : bool, optional
+        Whether to return the scaled coordinate values or not. The default is True.
     start_frame: None or int, optional
         User-defined start frame.
     end_frame: None or int, optional
         User-defined end frame.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.        
+    log : bool, optional
+        Whether to write logs or not. The default is False.         
 
     Returns
     -------
@@ -836,16 +868,16 @@ def get_marker_pos2(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=N
     This function returns the manual multiplication between un-scaled values from GetPointDataEx() and POINT:SCALE parameter.
     Ideally, get_marker_pos2() should return as same results as get_marker_pos() function.
     """
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
+    mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     n_frs = end_fr-start_fr+1
     mkr_scale = get_marker_scale(itf)
     is_c3d_float = mkr_scale < 0
     is_c3d_float2 = [False, True][itf.GetDataType()-1]
     if is_c3d_float != is_c3d_float2:
-        if msg: print(f"C3D data type is determined by the POINT:SCALE parameter.")
+        if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter.')
     mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
     mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
     scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
@@ -860,7 +892,7 @@ def get_marker_pos2(itf, mkr_name, scaled=True, blocked_nan=False, start_frame=N
         mkr_data[mkr_null_masks,:] = np.nan            
     return mkr_data
 
-def get_marker_residual(itf, mkr_name, start_frame=None, end_frame=None, msg=False):
+def get_marker_residual(itf, mkr_name, start_frame=None, end_frame=None, log=False):
     """
     Return the 3D residual values of a specified marker in an open C3D file.
 
@@ -874,8 +906,8 @@ def get_marker_residual(itf, mkr_name, start_frame=None, end_frame=None, msg=Fal
         User-defined start frame.
     end_frame: None or int, optional
         User-defined end frame.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.        
+    log : bool, optional
+        Whether to write logs or not. The default is False.           
 
     Returns
     -------
@@ -883,14 +915,14 @@ def get_marker_residual(itf, mkr_name, start_frame=None, end_frame=None, msg=Fal
         1D numpy array (n,), where n is the number of frames in the output.
 
     """
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
+    mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
     return mkr_resid
 
-def get_all_marker_pos_df(itf, blocked_nan=False, msg=False):
+def get_all_marker_pos_df(itf, blocked_nan=False, log=False):
     """
     Return all marker's coordinate values as a form of pandas frame.
 
@@ -900,8 +932,8 @@ def get_all_marker_pos_df(itf, blocked_nan=False, msg=False):
         COM interface of the C3DServer.
     blocked_nan : bool, optional
         Whether to set the coordinates of blocked frames as nan. The default is False.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False. 
 
     Returns
     -------
@@ -914,13 +946,13 @@ def get_all_marker_pos_df(itf, blocked_nan=False, msg=False):
     mkr_coord_names = [a+'_'+b for a in mkr_names for b in ['X', 'Y', 'Z']]
     df = pd.DataFrame(np.zeros((n_frs, len(mkr_coord_names))), columns=mkr_coord_names)
     for mkr_name in mkr_names:
-        mkr_data = get_marker_data(itf, mkr_name, blocked_nan, msg)
+        mkr_data = get_marker_data(itf, mkr_name, blocked_nan, log)
         mkr_coords = mkr_data[:,0:3] 
         mkr_name_xyz = [mkr_name+'_'+c for c in ['X', 'Y', 'Z']]
         df[mkr_name_xyz] = mkr_coords[:,0:3]
     return df
 
-def get_all_marker_pos_arr2d(itf, blocked_nan=False, msg=False):
+def get_all_marker_pos_arr2d(itf, blocked_nan=False, log=False):
     """
     Return all marker's coordinate values as a form of 2D numpy array.
 
@@ -930,8 +962,8 @@ def get_all_marker_pos_arr2d(itf, blocked_nan=False, msg=False):
         COM interface of the C3DServer.
     blocked_nan : bool, optional
         Whether to set the coordinates of blocked frames as nan. The default is False.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False. 
 
     Returns
     -------
@@ -943,11 +975,11 @@ def get_all_marker_pos_arr2d(itf, blocked_nan=False, msg=False):
     n_frs = get_num_frames(itf)
     mkr_coords_all = np.zeros((n_frs, len(mkr_names)*3), dtype=np.float32)
     for idx, mkr_name in enumerate(mkr_names):
-        mkr_data = get_marker_data(itf, mkr_name, blocked_nan, msg)
+        mkr_data = get_marker_data(itf, mkr_name, blocked_nan, log)
         mkr_coords_all[:,3*idx+0:3*idx+3] = mkr_data[:,0:3]
     return mkr_coords_all
 
-def get_all_marker_pos_arr3d(itf, blocked_nan=False, msg=False):
+def get_all_marker_pos_arr3d(itf, blocked_nan=False, log=False):
     """
     Return all marker's coordinate values as a form of 3D numpy array.
 
@@ -957,8 +989,8 @@ def get_all_marker_pos_arr3d(itf, blocked_nan=False, msg=False):
         COM interface of the C3DServer.
     blocked_nan : bool, optional
         Whether to set the coordinates of blocked frames as nan. The default is False.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False. 
 
     Returns
     -------
@@ -970,33 +1002,61 @@ def get_all_marker_pos_arr3d(itf, blocked_nan=False, msg=False):
     n_frs = get_num_frames(itf)
     mkr_coords_all = np.zeros((n_frs, len(mkr_names), 3), dtype=np.float32)
     for idx, mkr_name in enumerate(mkr_names):
-        mkr_data = get_marker_data(itf, mkr_name, blocked_nan, msg)
+        mkr_data = get_marker_data(itf, mkr_name, blocked_nan, log)
         mkr_coords = mkr_data[:,0:3]
         mkr_coords_all[:,idx,0:3] = mkr_coords[:,0:3]
     return mkr_coords_all
 
-def get_dict_markers(itf, blocked_nan=False, residual=False, mask=False, time=False, tgt_mkr_names=None, start_frame=None, end_frame=None, msg=False):
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
-    if not fr_check: return None
+def get_dict_markers(itf, blocked_nan=False, residual=False, mask=False, frame=False, time=False, tgt_mkr_names=None, log=False):
+    """
+    Get the dictionary of marker information.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    blocked_nan : bool, optional
+        Whether to set the coordinates of blocked frames as nan. The default is False.
+    residual : bool, optional
+        Whether to include the residual values of markers. The default is False.
+    mask : bool, optional
+        Whether to include the mask information of markers. The default is False.
+    frame : bool, optional
+        Whether to include the frame array. The default is False.        
+    time : bool, optional
+        Whether to include the time array. The default is False.
+    tgt_mkr_names : list or tuple, optional
+        Specific target marker names to extract. The default is None.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    dict_pts : dictionary
+        Dictionary of marker information.
+
+    """
+    start_fr = get_first_frame(itf)
+    end_fr = get_last_frame(itf)    
     n_frs = end_fr-start_fr+1
     idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
     if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS1')
     if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS2')
     if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS3')
     if idx_pt_labels == -1:
-        if msg: print(f"POINT:LABELS parameter does not exist!")
+        if log: logger.debug('No POINT:LABELS parameter!')
         return None
     n_pt_labels = itf.GetParameterLength(idx_pt_labels)
     if n_pt_labels < 1:
-        if msg: print(f"No item under the POINT:LABELS parameter!")
+        if log: logger.debug('No item under POINT:LABELS parameter!')
         return None
     idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
     if idx_pt_used == -1:
-        if msg: print(f"POINT:USED parameter does not exist!")
+        if log: logger.debug('No POINT:USED parameter!')
         return None        
     n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
     if n_pt_used < 1:
-        if msg: print(f"POINT:USED is zero!")
+        if log: logger.debug(f'POINT:USED is zero!')
         return None
     dict_pts = {}
     mkr_names = []
@@ -1036,24 +1096,44 @@ def get_dict_markers(itf, blocked_nan=False, residual=False, mask=False, time=Fa
         if n_pt_rate == 1:
             rate = np.float32(itf.GetParameterValue(idx_pt_rate, 0))
             dict_pts.update({'RATE': rate})
-    dict_pts.update({'FRAMES': get_video_frames(itf)})
+    if frame: dict_pts.update({'FRAME': get_video_frames(itf)})
     if time: dict_pts.update({'TIME': get_video_times(itf)})
     return dict_pts
 
-def get_dict_forces(itf, time=False, start_frame=None, end_frame=None, msg=False):
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
-    if not fr_check: return None
+def get_dict_forces(itf, frame=False, time=False, log=False):
+    """
+    Get the dictionary of forces.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    frame : bool, optional
+        Whether to include the frame array. The default is False.          
+    time : bool, optional
+        Whether to include the time array. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    dict_forces : TYPE
+        DESCRIPTION.
+
+    """
+    start_fr = get_first_frame(itf)
+    end_fr = get_last_frame(itf)
     idx_force_used = itf.GetParameterIndex('FORCE_PLATFORM', 'USED')
     if idx_force_used == -1: 
-        if msg: print(f"FORCE_PLATFORM:USED parameter does not exist!")
+        if log: logger.debug(f'FORCE_PLATFORM:USED parameter does not exist!')
         return None
     n_force_used = itf.GetParameterValue(idx_force_used, 0)
     if n_force_used < 1:
-        if msg: print(f"FORCE_PLATFORM:USED is zero!")
+        if log: logger.debug(f'FORCE_PLATFORM:USED is zero!')
         return None
     idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
     if idx_force_chs == -1: 
-        if msg: print(f"FORCE_PLATFORM:CHANNEL parameter does not exist!")
+        if log: logger.debug(f'FORCE_PLATFORM:CHANNEL parameter does not exist!')
         return None
     idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
     idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
@@ -1086,11 +1166,11 @@ def get_dict_forces(itf, time=False, start_frame=None, end_frame=None, msg=False
         n_analog_rate = itf.GetParameterLength(idx_analog_rate)
         if n_analog_rate == 1:
             dict_forces.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
-    dict_forces.update({'FRAMES': get_analog_frames(itf)})
+    if frame: dict_forces.update({'FRAME': get_analog_frames(itf)})
     if time: dict_forces.update({'TIME': get_analog_times(itf)})
     return dict_forces
 
-def get_analog_names(itf):
+def get_analog_names(itf, log=False):
     """
     Return a string list of the analog channel names in an open C3D file.
 
@@ -1098,7 +1178,9 @@ def get_analog_names(itf):
     ----------
     itf : win32com.client.CDispatch
         COM interface of the C3DServer.
-
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+        
     Returns
     -------
     sig_names : list
@@ -1107,17 +1189,24 @@ def get_analog_names(itf):
     """
     sig_names = []
     idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    if idx_anl_labels == -1: return None
+    if idx_anl_labels == -1:
+        if log: logger.debug('No ANALOG:LABELS parameter!')
+        return None
     n_anl_labels = itf.GetParameterLength(idx_anl_labels)
-    if n_anl_labels < 1: return None
+    if n_anl_labels < 1:
+        if log: logger.debug('No item under ANALOG:LABELS parameter!')
+        return None
     idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
+    if idx_anl_used == -1:
+        if log: logger.debug('No ANALOG:USED parameter!')
+        return None        
     n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
     for i in range(n_anl_labels):
         if i < n_anl_used:
             sig_names.append(itf.GetParameterValue(idx_anl_labels, i))
     return sig_names
 
-def get_analog_index(itf, sig_name, msg=False):
+def get_analog_index(itf, sig_name, log=False):
     """
     Get the index of analog channel.
 
@@ -1127,8 +1216,8 @@ def get_analog_index(itf, sig_name, msg=False):
         COM interface of the C3DServer.
     sig_name : str
         Analog channel name.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1137,10 +1226,17 @@ def get_analog_index(itf, sig_name, msg=False):
 
     """
     idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    if idx_anl_labels == -1: return None
+    if idx_anl_labels == -1:
+        if log: logger.debug('No ANALOG:LABELS parameter!')
+        return None
     n_anl_labels = itf.GetParameterLength(idx_anl_labels)
-    if n_anl_labels < 1: return None
+    if n_anl_labels < 1:
+        if log: logger.debug('No item under ANALOG:LABELS parameter!')
+        return None
     idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
+    if idx_anl_used == -1:
+        if log: logger.debug('No ANALOG:USED parameter!')
+        return None    
     n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
     sig_idx = -1    
     for i in range(n_anl_labels):
@@ -1150,10 +1246,10 @@ def get_analog_index(itf, sig_name, msg=False):
                 sig_idx = i
                 break        
     if sig_idx == -1:
-        if msg: print(f"No {sig_name} analog channel in this C3D file!")
+        if log: logger.debug(f'No {sig_name} analog channel in this C3D file!')
     return sig_idx
 
-def get_analog_gen_scale(itf):
+def get_analog_gen_scale(itf, log=False):
     """
     Return the general (common) scaling factor for analog channels in an open C3D file.
 
@@ -1161,6 +1257,8 @@ def get_analog_gen_scale(itf):
     ----------
     itf : win32com.client.CDispatch
         COM interface of the C3DServer.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -1171,13 +1269,17 @@ def get_analog_gen_scale(itf):
         
     """
     par_idx = itf.GetParameterIndex('ANALOG', 'GEN_SCALE')
-    if par_idx == -1: return None
+    if par_idx == -1:
+        if log: logger.debug('No ANALOG:GEN_SCALE parameter!')
+        return None
     n_items = itf.GetParameterLength(par_idx)
-    if n_items < 1: return None
+    if n_items < 1:
+        if log: logger.debug('No item under ANALOG:GEN_SCALE parameter!')
+        return None
     gen_scale = np.float32(itf.GetParameterValue(par_idx, n_items-1))
     return gen_scale
 
-def get_analog_format(itf):
+def get_analog_format(itf, log=False):
     """
     Return the format of analog channels in an open C3D file.
 
@@ -1185,6 +1287,8 @@ def get_analog_format(itf):
     ----------
     itf : win32com.client.CDispatch
         COM interface of the C3DServer.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -1195,13 +1299,17 @@ def get_analog_format(itf):
         
     """
     par_idx = itf.GetParameterIndex('ANALOG', 'FORMAT')
-    if par_idx == -1: return None
+    if par_idx == -1:
+        if log: logger.debug('No ANALOG:FORMAT parameter!')
+        return None
     n_items = itf.GetParameterLength(par_idx)
-    if n_items < 1: return None    
+    if n_items < 1:
+        if log: logger.debug('No item under ANALOG:FORMAT parameter!')
+        return None    
     sig_format = itf.GetParameterValue(par_idx, n_items-1)
     return sig_format
 
-def get_analog_unit(itf, sig_name, msg=False):
+def get_analog_unit(itf, sig_name, log=False):
     """
     Return the unit of an analog channel.
 
@@ -1211,8 +1319,8 @@ def get_analog_unit(itf, sig_name, msg=False):
         COM interface of the C3DServer.
     sig_name : str
         Analog channel name.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1220,14 +1328,16 @@ def get_analog_unit(itf, sig_name, msg=False):
         Analog channel unit.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, msg)
+    sig_idx = get_analog_index(itf, sig_name, log)
     if sig_idx == -1: return None
     par_idx = itf.GetParameterIndex('ANALOG', 'UNITS')
-    if par_idx == -1: return None
+    if par_idx == -1:
+        if log: logger.debug('No ANALOG:UNITS parameter!')
+        return None
     sig_unit = itf.GetParameterValue(par_idx, sig_idx)
     return sig_unit
     
-def get_analog_scale(itf, sig_name, msg=False):
+def get_analog_scale(itf, sig_name, log=False):
     """
     Return the scale of an analog channel.
 
@@ -1237,8 +1347,8 @@ def get_analog_scale(itf, sig_name, msg=False):
         COM interface of the C3DServer.
     sig_name : str
         Analog channel name.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1246,14 +1356,16 @@ def get_analog_scale(itf, sig_name, msg=False):
         Analog channel scale.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, msg)
+    sig_idx = get_analog_index(itf, sig_name, log)
     if sig_idx == -1: return None
     par_idx = itf.GetParameterIndex('ANALOG', 'SCALE')
-    if par_idx == -1: return None
+    if par_idx == -1:
+        if log: logger.debug('No ANALOG:SCALE parameter!')
+        return None
     sig_scale = np.float32(itf.GetParameterValue(par_idx, sig_idx))
     return sig_scale
     
-def get_analog_offset(itf, sig_name, msg=False):
+def get_analog_offset(itf, sig_name, log=False):
     """
     Return the offset of an analog channel.
 
@@ -1263,8 +1375,8 @@ def get_analog_offset(itf, sig_name, msg=False):
         COM interface of the C3DServer.
     sig_name : str
         Analog channel name.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1272,17 +1384,19 @@ def get_analog_offset(itf, sig_name, msg=False):
         Analog channel offset.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, msg)
+    sig_idx = get_analog_index(itf, sig_name, log)
     if sig_idx == -1: return None
     par_idx = itf.GetParameterIndex('ANALOG', 'OFFSET')
-    if par_idx == -1: return None
+    if par_idx == -1:
+        if log: logger.debug('No ANALOG:OFFSET parameter!')
+        return None
     sig_format = get_analog_format(itf)
     is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
     par_dtype = [np.int16, np.uint16][is_sig_unsigned]
     sig_offset = par_dtype(itf.GetParameterValue(par_idx, sig_idx))
     return sig_offset
             
-def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, msg=False):
+def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, log=False):
     """
     Return the unscaled value of an analog channel.
 
@@ -1296,8 +1410,8 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, ms
         Start frame number. The default is None.
     end_frame : int or None, optional
         End frame number. The default is None.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1305,9 +1419,9 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, ms
         Analog channel value.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, msg)
+    sig_idx = get_analog_index(itf, sig_name, log)
     if sig_idx == -1: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     sig_format = get_analog_format(itf)
     is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')        
@@ -1315,12 +1429,12 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, ms
     is_c3d_float = mkr_scale < 0
     is_c3d_float2 = [False, True][itf.GetDataType()-1]
     if is_c3d_float != is_c3d_float2:
-        if msg: print(f"C3D data type is determined by the POINT:SCALE parameter.")
+        if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter.')
     sig_dtype = [[np.int16, np.uint16][is_sig_unsigned], np.float32][is_c3d_float]
     sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
     return sig
 
-def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, msg=False):
+def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, log=False):
     """
     Return the scale value of an analog channel.
 
@@ -1334,8 +1448,8 @@ def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, msg=
         Start frame number. The default is None.
     end_frame : int or None, optional
         End frame number. The default is None.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1343,14 +1457,14 @@ def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, msg=
         Analog channel value.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, msg)
+    sig_idx = get_analog_index(itf, sig_name, log)
     if sig_idx == -1: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
     return sig
 
-def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, msg=False):
+def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log=False):
     """
     Return the scale value of an analog channel.
 
@@ -1364,8 +1478,8 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, msg
         Start frame number. The default is None.
     end_frame : int or None, optional
         End frame number. The default is None.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1373,9 +1487,9 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, msg
         Analog channel value.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, msg)
+    sig_idx = get_analog_index(itf, sig_name, log)
     if sig_idx == -1: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, msg)
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     gen_scale = get_analog_gen_scale(itf)
     sig_scale = get_analog_scale(itf, sig_name)
@@ -1383,7 +1497,7 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, msg
     sig = (np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
     return sig
 
-def change_marker_name(itf, mkr_name_old, mkr_name_new, msg=False):
+def change_marker_name(itf, mkr_name_old, mkr_name_new, log=False):
     """
     Change the name of a marker.
 
@@ -1395,8 +1509,8 @@ def change_marker_name(itf, mkr_name_old, mkr_name_new, msg=False):
         Old marker name.
     mkr_name_new : str
         New marker name.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1404,13 +1518,16 @@ def change_marker_name(itf, mkr_name_old, mkr_name_new, msg=False):
         True or False.
 
     """
-    mkr_idx = get_marker_index(itf, mkr_name_old, msg)
+    mkr_idx = get_marker_index(itf, mkr_name_old, log)
     if mkr_idx == -1: return False
     par_idx = itf.GetParameterIndex('POINT', 'LABELS')
+    if par_idx == -1:
+        if log: logger.debug('No POINT:LABELS parameter!')
+        return False
     ret = itf.SetParameterValue(par_idx, mkr_idx, mkr_name_new)
     return [False, True][ret]
 
-def change_analog_name(itf, sig_name_old, sig_name_new, msg=False):
+def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
     """
     Change the name of an analog channel.
 
@@ -1422,8 +1539,8 @@ def change_analog_name(itf, sig_name_old, sig_name_new, msg=False):
         Old analog channel name.
     sig_name_new : str
         New analog channel name.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1431,13 +1548,16 @@ def change_analog_name(itf, sig_name_old, sig_name_new, msg=False):
         True or False.
 
     """
-    sig_idx = get_analog_index(itf, sig_name_old, msg)
+    sig_idx = get_analog_index(itf, sig_name_old, log)
     if sig_idx == -1: return False
     par_idx = itf.GetParameterIndex('ANALOG', 'LABELS')
+    if par_idx == -1:
+        if log: logger.debug('No ANALOG:LABELS parameter!')
+        return False        
     ret = itf.SetParameterValue(par_idx, sig_idx, sig_name_new)
     return [False, True][ret]
 
-def add_marker(itf, mkr_name, mkr_coords, msg=False):
+def add_marker(itf, mkr_name, mkr_coords, log=False):
     """
     Add a new marker into an open C3D file.
 
@@ -1449,8 +1569,8 @@ def add_marker(itf, mkr_name, mkr_coords, msg=False):
         A new marker name.
     mkr_coords : numpy array
         A numpy array of the marker coordinates.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1461,7 +1581,7 @@ def add_marker(itf, mkr_name, mkr_coords, msg=False):
     start_fr = get_first_frame(itf)
     n_frs = get_num_frames(itf)
     if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
-        if msg: print("The dimension of the input is not compatible!")
+        if log: logger.warning('The dimension of the input is not compatible!')
         return False
     ret = 0    
     # Add an parameter to the 'POINT:LABELS' section
@@ -1512,7 +1632,7 @@ def add_marker(itf, mkr_name, mkr_coords, msg=False):
         ret = itf.SetParameterValue(par_idx_pt_labels, 0, cnt_pt_labels)
     return [False, True][ret]
 
-def add_analog(itf, sig_name, sig_unit, sig_value, sig_scale=1.0, sig_offset=0, sig_gain=0, sig_desc=None, msg=False):
+def add_analog(itf, sig_name, sig_unit, sig_value, sig_scale=1.0, sig_offset=0, sig_gain=0, sig_desc=None, log=False):
     """
     Add a new analog signal into an open C3D file.
 
@@ -1534,8 +1654,8 @@ def add_analog(itf, sig_name, sig_unit, sig_value, sig_scale=1.0, sig_offset=0, 
         A new analog channel gain. The default is 0.
     sig_desc : str, optional
         A new analog channel description. The default is None.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1547,7 +1667,7 @@ def add_analog(itf, sig_name, sig_unit, sig_value, sig_scale=1.0, sig_offset=0, 
     n_frs = get_num_frames(itf)
     av_ratio = get_analog_video_ratio(itf)
     if sig_value.ndim!=1 or sig_value.shape[0]!=(n_frs*av_ratio):
-        if msg: print("The dimension of the input is not compatible!")
+        if log: logger.warning('The dimension of the input is not compatible!')
         return False
     # Add an parameter to the 'ANALOG:LABELS' section
     n_idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
@@ -1594,7 +1714,7 @@ def add_analog(itf, sig_name, sig_unit, sig_value, sig_scale=1.0, sig_offset=0, 
         ret = itf.SetParameterValue(n_idx_analog_used, 0, n_cnt_analog_labels)
     return [False, True][ret]
 
-def delete_frames(itf, start_frame, num_frames, msg=False):
+def delete_frames(itf, start_frame, num_frames, log=False):
     """
     Delete specified frames in an open C3D file.
 
@@ -1606,8 +1726,8 @@ def delete_frames(itf, start_frame, num_frames, msg=False):
         Start frame number.
     num_frames : int
         Number of frames to be deleted.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1616,17 +1736,17 @@ def delete_frames(itf, start_frame, num_frames, msg=False):
 
     """
     if start_frame < get_first_frame(itf):
-        if msg: print(f'Given start frame number should be equal or greater than {get_first_frame(itf)} for this C3D file!')
+        if log: logger.warning(f'Given start frame number should be equal or greater than {get_first_frame(itf)} for this C3D file!')
         return None
     elif start_frame >= get_last_frame(itf):
-        if msg: print(f'Given start frame number should be less than {get_last_frame(itf)} for this C3D file!')
+        if log: logger.warning(f'Given start frame number should be less than {get_last_frame(itf)} for this C3D file!')
         return None
     n_frs_updated = itf.DeleteFrames(start_frame, num_frames)
     return n_frs_updated
 
-def update_marker_pos(itf, mkr_name, mkr_coords, msg=False):
+def update_marker_pos(itf, mkr_name, mkr_coords, log=False):
     """
-    Update the entire marker coordinates.
+    Update the coordinates of a marker entirely.
 
     Parameters
     ----------
@@ -1636,8 +1756,8 @@ def update_marker_pos(itf, mkr_name, mkr_coords, msg=False):
         Marker name.
     mkr_coords : numpy array
         Marker coordinates.
-    msg : bool, optional
-        Whether to print messages or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -1645,18 +1765,72 @@ def update_marker_pos(itf, mkr_name, mkr_coords, msg=False):
         True or False.
 
     """
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
-    if mkr_idx == -1: return False
     start_fr = get_first_frame(itf)
     n_frs = get_num_frames(itf)
     if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
-        if msg: print("The dimension of the input is not compatible!")
+        if log: logger.warning('The dimension of the input is not compatible!')
         return False
+    mkr_idx = get_marker_index(itf, mkr_name, log)
+    if mkr_idx == -1: return False    
     mkr_scale = get_marker_scale(itf)
     is_c3d_float = mkr_scale < 0
     is_c3d_float2 = [False, True][itf.GetDataType()-1]
     if is_c3d_float != is_c3d_float2:
-        if msg: print(f"C3D data type is determined by the POINT:SCALE parameter.")
+        if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter.')
+    mkr_dtype = [np.int16, np.float32][is_c3d_float]
+    scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
+    if is_c3d_float:
+        mkr_coords_unscaled = np.asarray(mkr_coords, dtype=mkr_dtype)
+    else:
+        mkr_coords_unscaled = np.asarray(np.round(mkr_coords/scale_size), dtype=mkr_dtype)
+    dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
+    dtype_arr = pythoncom.VT_ARRAY|dtype
+    for i in range(3):
+        variant = win32.VARIANT(dtype_arr, np.nan_to_num(mkr_coords_unscaled[:,i]))
+        ret = itf.SetPointDataEx(mkr_idx, i, start_fr, variant)
+    var_const = win32.VARIANT(dtype, 1)
+    for i in range(3):
+        for idx, val in enumerate(mkr_coords_unscaled[:,i]):
+            if val == 1:
+                ret = itf.SetPointData(mkr_idx, i, start_fr+idx, var_const)
+    return [False, True][ret]
+
+def set_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
+    """
+    Set the coordinates of a marker partially.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    mkr_name : str
+        Marker name.
+    mkr_coords : numpy array
+        Marker coordinates.
+    start_frame : int
+        Frame number where setting will start.        
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
+    if not fr_check: return False
+    n_frs = end_fr-start_fr+1
+    if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
+        if log: logger.warning('The dimension of the input is not compatible!')
+        return False    
+    mkr_idx = get_marker_index(itf, mkr_name, log)
+    if mkr_idx == -1: return False
+    mkr_scale = get_marker_scale(itf)
+    is_c3d_float = mkr_scale < 0
+    is_c3d_float2 = [False, True][itf.GetDataType()-1]
+    if is_c3d_float != is_c3d_float2:
+        if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter.')
     mkr_dtype = [np.int16, np.float32][is_c3d_float]
     scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
     if is_c3d_float:
@@ -1675,14 +1849,34 @@ def update_marker_pos(itf, mkr_name, mkr_coords, msg=False):
                 ret = itf.SetPointData(mkr_idx, i, start_fr+idx, var_const)
     return [False, True][ret]
     
-def update_marker_residual(itf, mkr_name, mkr_resid, msg=False):
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
-    if mkr_idx == -1: return False
+def update_marker_residual(itf, mkr_name, mkr_resid, log=False):
+    """
+    Update the residual of a marker entirely.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    mkr_name : str
+        Marker name.
+    mkr_resid : numpy array
+        Marker residuals.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+
+    """
     start_fr = get_first_frame(itf)
     n_frs = get_num_frames(itf)
     if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
-        if msg: print("The dimension of the input is not compatible!")
-        return False
+        if log: logger.warning('The dimension of the input is not compatible!')
+        return False    
+    mkr_idx = get_marker_index(itf, mkr_name, log)
+    if mkr_idx == -1: return False
     dtype = pythoncom.VT_R4
     dtype_arr = pythoncom.VT_ARRAY|dtype
     variant = win32.VARIANT(dtype_arr, mkr_resid)
@@ -1693,38 +1887,45 @@ def update_marker_residual(itf, mkr_name, mkr_resid, msg=False):
             ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
     return [False, True][ret]
 
-def set_marker_pos(itf, mkr_name, start_frame, mkr_coords, msg=False):  
-    if mkr_coords.ndim != 2:
-        if msg: print("The dimension of the input is not compatible!")
-        return False    
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
-    if mkr_idx == -1: return False
-    dtype = pythoncom.VT_R4
-    dtype_arr = pythoncom.VT_ARRAY|dtype
-    for i in range(3):
-        variant = win32.VARIANT(dtype_arr, np.nan_to_num(mkr_coords[:, i]))
-        ret = itf.SetPointDataEx(mkr_idx, i, start_frame, variant)
-    var_const = win32.VARIANT(dtype, 1)
-    for i in range(3):
-        for idx, val in enumerate(mkr_coords[:,i]):
-            if val == 1:
-                ret = itf.SetPointData(mkr_idx, i, start_frame+idx, var_const)
-    return [False, True][ret]
+def set_marker_residual(itf, mkr_name, mkr_resid, start_frame=None, log=False):
+    """
+    Set the residual of a marker partially.
 
-def set_marker_residual(itf, mkr_name, start_frame, mkr_resid, msg=False):
-    if mkr_resid.ndim != 1:
-        if msg: print("The dimension of the input is not compatible!")
-        return False
-    mkr_idx = get_marker_index(itf, mkr_name, msg)
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    mkr_name : str
+        Marker name.
+    mkr_resid : numpy array
+        Marker residuals.
+    start_frame : int
+        Frame number where setting will start.            
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+
+    """
+    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
+    if not fr_check: return False
+    n_frs = end_fr-start_fr+1
+    if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
+        if log: logger.warning('The dimension of the input is not compatible!')
+        return False    
+    mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1: return False
     dtype = pythoncom.VT_R4
     dtype_arr = pythoncom.VT_ARRAY|dtype
     variant = win32.VARIANT(dtype_arr, mkr_resid)
-    ret = itf.SetPointDataEx(mkr_idx, 3, start_frame, variant)
+    ret = itf.SetPointDataEx(mkr_idx, 3, start_fr, variant)
     var_const = win32.VARIANT(dtype, 1)
     for idx, val in enumerate(mkr_resid):
         if val == 1:
-            ret = itf.SetPointData(mkr_idx, 3, start_frame+idx, var_const)   
+            ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
     return [False, True][ret]
 
 def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, msg=False):
