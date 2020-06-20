@@ -1,9 +1,70 @@
+import os
 import pythoncom
 import win32com.client as win32
 import numpy as np
 import pandas as pd
 from scipy.interpolate import InterpolatedUnivariateSpline
 import logging
+
+logger_name = 'pyc3dserver'
+logger = logging.getLogger(logger_name)
+logger.setLevel('CRITICAL')
+logger.addHandler(logging.NullHandler())
+
+def logger_init(logger_lvl='WARNING', c_hdlr_lvl='WARNING', f_hdlr_lvl='ERROR', f_hdlr_f_mode='w', f_hdlr_f_path=None):
+    """
+    Initialize the logger of pyc3dserver module.
+
+    Parameters
+    ----------
+    logger_lvl : str or int, optional
+        Level of the logger itself. The default is 'WARNING'.
+    c_hdlr_lvl : str or int, optional
+        Level of the console handler in the logger. The default is 'WARNING'.
+    f_hdlr_lvl : str or int, optional
+        Level of the file handler in the logger. The default is 'ERROR'.
+    f_hdlr_f_mode : str, optional
+        File mode of the find handler in the logger. The default is 'w'.
+    f_hdlr_f_path : str, optional
+        File path of the file handler. The default is None.
+        If this value is None, then there will be no file handler in the logger. 
+        
+    Returns
+    -------
+    logger : logging.Logger
+        Logger object.
+
+    """
+    logger.setLevel(logger_lvl)
+    while logger.hasHandlers():
+        logger.removeHandler(logger.handlers[0])    
+    if not logger.handlers:
+        c_hdlr = logging.StreamHandler()
+        c_hdlr.setLevel(c_hdlr_lvl)
+        c_fmt = logging.Formatter('<%(name)s> - [%(levelname)s] - %(funcName)s() : %(message)s')
+        c_hdlr.setFormatter(c_fmt)
+        logger.addHandler(c_hdlr)
+        if f_hdlr_f_path is not None:
+            f_hdlr = logging.FileHandler(f_hdlr_f_path, mode=f_hdlr_f_mode)
+            f_hdlr.setLevel(f_hdlr_lvl)
+            f_fmt = logging.Formatter('%(asctime)s - <%(name)s> - [%(levelname)s] - %(funcName)s() : %(message)s')
+            f_hdlr.setFormatter(f_fmt)
+            logger.addHandler(f_hdlr)
+    return logger
+
+def logger_reset():
+    """
+    Reset the logger by setting its level as 'CRITICAL' and removing all its handlers.
+
+    Returns
+    -------
+    None.
+
+    """
+    while logger.hasHandlers():
+        logger.removeHandler(logger.handlers[0])    
+    logger.setLevel('CRITICAL')       
+    return None
 
 def c3dserver():
     """
@@ -19,6 +80,7 @@ def c3dserver():
 
     """
     # itf = win32.Dispatch('C3DServer.C3D')
+    print("========================================")
     itf = win32.dynamic.Dispatch('C3DServer.C3D')
     reg_mode = itf.GetRegistrationMode()
     if reg_mode == 0:
@@ -27,12 +89,13 @@ def c3dserver():
         print("Evaluation C3Dserver")
     elif reg_mode == 2:
         print("Registered C3Dserver")
-    print("Version = ", itf.GetVersion())
-    print(itf.GetRegUserName())
-    print(itf.GetRegUserOrganization())
+    print("Version: ", itf.GetVersion())
+    print("User: ", itf.GetRegUserName())
+    print("Organization: ", itf.GetRegUserOrganization())
+    print("========================================")
     return itf
 
-def open_c3d(itf, f_path, logger_name=None):
+def open_c3d(itf, f_path, log=False):
     """
     Open a C3D file.
 
@@ -42,6 +105,8 @@ def open_c3d(itf, f_path, logger_name=None):
         COM interface of the C3DServer.
     f_path : str
         Path of input C3D file to open.
+    log: bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -49,15 +114,23 @@ def open_c3d(itf, f_path, logger_name=None):
         0 if the file is opened successfully or 1 if it could not be opened.
 
     """
-    if logger_name is not None:
-        logging.getLogger(logger_name).info(f'Opening a C3D file.')
-    return itf.Open(f_path, 3)
+    if log: logger.debug(f'Opening a file "{f_path}"')
+    if not os.path.exists(f_path):
+        if log: logger.error('File path does not exist!')
+        return False
+    ret = itf.Open(f_path, 3)
+    if ret == 0:
+        if log: logger.info(f'File is opened successfully.')
+        return True
+    else:
+        if log: logger.info(f'File can not be opened.')
+        return False
 
-def save_c3d(itf, f_path = '', f_type = -1):
+def save_c3d(itf, f_path='', f_type=-1, log=False):
     """
     Save a C3D file.
     
-    If 'f_path' is given an empty string as its default, this function will overwrite the opened C3D file.
+    If 'f_path' is given an empty string, this function will overwrite the opened existing C3D file.
 
     Parameters
     ----------
@@ -68,16 +141,26 @@ def save_c3d(itf, f_path = '', f_type = -1):
     f_type : int, optional
         Type of saving file. -1 means that the data is saved to the existing file type.
         1 for Intel(MS-DOS) format, 2 for DEC format, 3 for SGI format.
+    log: bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
-    int
-        1 if the file is saved or 0 if the file is not saved.
+    bool
+        True or False.
 
     """
-    return itf.SaveFile(f_path, f_type)
+    if log: logger.debug(f'Saving a file "{f_path}"')
+    ret = itf.SaveFile(f_path, f_type)
+    if ret == 1:
+        if log: logger.info(f'File is successfully saved.')
+        return True
+    else:
+        if log: logger.info(f'File can not be saved.')
+        return False
+    return 
 
-def close_c3d(itf):
+def close_c3d(itf, log=False):
     """
     Close a C3D file that has been previously opened and releases the memory.
     
@@ -94,6 +177,7 @@ def close_c3d(itf):
         None.
 
     """
+    if log: logger.info(f'File is closed.')
     return itf.Close()
 
 
