@@ -11,7 +11,7 @@ logger = logging.getLogger(logger_name)
 logger.setLevel('CRITICAL')
 logger.addHandler(logging.NullHandler())
 
-def logger_init(logger_lvl='WARNING', c_hdlr_lvl='WARNING', f_hdlr_lvl='ERROR', f_hdlr_f_mode='w', f_hdlr_f_path=None):
+def init_logger(logger_lvl='WARNING', c_hdlr_lvl='WARNING', f_hdlr_lvl='ERROR', f_hdlr_f_mode='w', f_hdlr_f_path=None):
     """
     Initialize the logger of pyc3dserver module.
 
@@ -52,7 +52,7 @@ def logger_init(logger_lvl='WARNING', c_hdlr_lvl='WARNING', f_hdlr_lvl='ERROR', 
             logger.addHandler(f_hdlr)
     return logger
 
-def logger_reset():
+def reset_logger():
     """
     Reset the logger by setting its level as 'CRITICAL' and removing all its handlers.
 
@@ -79,9 +79,9 @@ def c3dserver():
         COM interface of the C3DServer.
 
     """
-    # itf = win32.Dispatch('C3DServer.C3D')
     print('========================================')
-    itf = win32.dynamic.Dispatch('C3DServer.C3D')
+    itf = win32.Dispatch('C3DServer.C3D')
+    # itf = win32.dynamic.Dispatch('C3DServer.C3D')
     reg_mode = itf.GetRegistrationMode()
     if reg_mode == 0:
         print('Unregistered C3Dserver')
@@ -1744,58 +1744,7 @@ def delete_frames(itf, start_frame, num_frames, log=False):
     n_frs_updated = itf.DeleteFrames(start_frame, num_frames)
     return n_frs_updated
 
-def update_marker_pos(itf, mkr_name, mkr_coords, log=False):
-    """
-    Update the coordinates of a marker entirely.
-
-    Parameters
-    ----------
-    itf : win32com.client.CDispatch
-        COM interface of the C3DServer.
-    mkr_name : str
-        Marker name.
-    mkr_coords : numpy array
-        Marker coordinates.
-    log : bool, optional
-        Whether to write logs or not. The default is False.
-
-    Returns
-    -------
-    bool
-        True or False.
-
-    """
-    start_fr = get_first_frame(itf)
-    n_frs = get_num_frames(itf)
-    if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
-        if log: logger.warning('The dimension of the input is not compatible!')
-        return False
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return False    
-    mkr_scale = get_marker_scale(itf)
-    is_c3d_float = mkr_scale < 0
-    is_c3d_float2 = [False, True][itf.GetDataType()-1]
-    if is_c3d_float != is_c3d_float2:
-        if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter.')
-    mkr_dtype = [np.int16, np.float32][is_c3d_float]
-    scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
-    if is_c3d_float:
-        mkr_coords_unscaled = np.asarray(mkr_coords, dtype=mkr_dtype)
-    else:
-        mkr_coords_unscaled = np.asarray(np.round(mkr_coords/scale_size), dtype=mkr_dtype)
-    dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
-    dtype_arr = pythoncom.VT_ARRAY|dtype
-    for i in range(3):
-        variant = win32.VARIANT(dtype_arr, np.nan_to_num(mkr_coords_unscaled[:,i]))
-        ret = itf.SetPointDataEx(mkr_idx, i, start_fr, variant)
-    var_const = win32.VARIANT(dtype, 1)
-    for i in range(3):
-        for idx, val in enumerate(mkr_coords_unscaled[:,i]):
-            if val == 1:
-                ret = itf.SetPointData(mkr_idx, i, start_fr+idx, var_const)
-    return [False, True][ret]
-
-def set_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
+def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
     """
     Set the coordinates of a marker partially.
 
@@ -1814,8 +1763,8 @@ def set_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
 
     Returns
     -------
-    TYPE
-        DESCRIPTION.
+    bool
+        True or False.
 
     """
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
@@ -1834,13 +1783,13 @@ def set_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
     mkr_dtype = [np.int16, np.float32][is_c3d_float]
     scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
     if is_c3d_float:
-        mkr_coords_unscaled = np.asarray(mkr_coords, dtype=mkr_dtype)
+        mkr_coords_unscaled = np.asarray(np.nan_to_num(mkr_coords), dtype=mkr_dtype)
     else:
-        mkr_coords_unscaled = np.asarray(np.round(mkr_coords/scale_size), dtype=mkr_dtype)
+        mkr_coords_unscaled = np.asarray(np.round(np.nan_to_num(mkr_coords)/scale_size), dtype=mkr_dtype)
     dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
     dtype_arr = pythoncom.VT_ARRAY|dtype
     for i in range(3):
-        variant = win32.VARIANT(dtype_arr, np.nan_to_num(mkr_coords_unscaled[:,i]))
+        variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
         ret = itf.SetPointDataEx(mkr_idx, i, start_fr, variant)
     var_const = win32.VARIANT(dtype, 1)
     for i in range(3):
@@ -1849,45 +1798,7 @@ def set_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
                 ret = itf.SetPointData(mkr_idx, i, start_fr+idx, var_const)
     return [False, True][ret]
     
-def update_marker_residual(itf, mkr_name, mkr_resid, log=False):
-    """
-    Update the residual of a marker entirely.
-
-    Parameters
-    ----------
-    itf : win32com.client.CDispatch
-        COM interface of the C3DServer.
-    mkr_name : str
-        Marker name.
-    mkr_resid : numpy array
-        Marker residuals.
-    log : bool, optional
-        Whether to write logs or not. The default is False.
-
-    Returns
-    -------
-    bool
-        True or False.
-
-    """
-    start_fr = get_first_frame(itf)
-    n_frs = get_num_frames(itf)
-    if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
-        if log: logger.warning('The dimension of the input is not compatible!')
-        return False    
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return False
-    dtype = pythoncom.VT_R4
-    dtype_arr = pythoncom.VT_ARRAY|dtype
-    variant = win32.VARIANT(dtype_arr, mkr_resid)
-    ret = itf.SetPointDataEx(mkr_idx, 3, start_fr, variant)
-    var_const = win32.VARIANT(dtype, 1)
-    for idx, val in enumerate(mkr_resid):
-        if val == 1:
-            ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
-    return [False, True][ret]
-
-def set_marker_residual(itf, mkr_name, mkr_resid, start_frame=None, log=False):
+def update_marker_residual(itf, mkr_name, mkr_resid, start_frame=None, log=False):
     """
     Set the residual of a marker partially.
 
@@ -1928,35 +1839,35 @@ def set_marker_residual(itf, mkr_name, mkr_resid, start_frame=None, log=False):
             ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
     return [False, True][ret]
 
-def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, msg=False):
-    if msg: print("Relative recovery of %s ... " % tgt_mkr_name, end="")
+def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, log=False):
+    if log: logger.debug(f'Start relative recovery of {tgt_mkr_name} ...')
     n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, msg=msg)
+    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
     tgt_mkr_coords = tgt_mkr_data[:,0:3]
     tgt_mkr_resid = tgt_mkr_data[:,3]
     tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
     n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
     if n_tgt_mkr_valid_frs == 0:
-        if msg: print("Skipped: no valid target marker frame!")
+        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: no valid target marker frame!')
         return False, n_tgt_mkr_valid_frs
     if n_tgt_mkr_valid_frs == n_total_frs:
-        if msg: print("Skipped: all target marker frames valid!")
+        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: all target marker frames valid!')
         return False, n_tgt_mkr_valid_frs
     dict_cl_mkr_coords = {}
     dict_cl_mkr_valid = {}
     cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
     for mkr in cl_mkr_names:
-        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, msg=msg)
+        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
         dict_cl_mkr_coords[mkr] = mkr_data[:, 0:3]
         dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
         cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
     all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
     if not np.any(all_mkr_valid_mask):
-        if msg: print("Skipped: no common valid frame among markers!")
+        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: no common valid frame among markers!')
         return False, n_tgt_mkr_valid_frs
     cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
     if not np.any(cl_mkr_only_valid_mask):
-        if msg: print("Skipped: cluster markers not helpful!")
+        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: cluster markers not helpful!')
         return False, n_tgt_mkr_valid_frs
     all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
     cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
@@ -1999,10 +1910,10 @@ def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, msg=False):
         tgt_mkr_coords_recovered[idx] = p0[fr]+np.dot(mat_rot[fr], tgt_coords_rel)
     tgt_mkr_coords[cl_mkr_only_valid_mask] = tgt_mkr_coords_recovered
     tgt_mkr_resid[cl_mkr_only_valid_mask] = 0.0
-    update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, msg=msg)
-    update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, msg=msg)
+    update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+    update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
     n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-    if msg: print("Updated.")
+    if log: logger.info(f'Relative recovery of {tgt_mkr_name} is finished.')
     return True, n_tgt_mkr_valid_frs_updated
 
 def recover_marker_rigidbody(itf, tgt_mkr_name, cl_mkr_names, msg=False):
