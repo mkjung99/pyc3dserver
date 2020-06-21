@@ -1826,7 +1826,7 @@ def update_marker_residual(itf, mkr_name, mkr_resid, start_frame=None, log=False
     n_frs = end_fr-start_fr+1
     if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
         if log: logger.warning('The dimension of the input is not compatible!')
-        return False    
+        return False
     mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1: return False
     dtype = pythoncom.VT_R4
@@ -1839,8 +1839,45 @@ def update_marker_residual(itf, mkr_name, mkr_resid, start_frame=None, log=False
             ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
     return [False, True][ret]
 
-def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, log=False):
-    if log: logger.debug(f'Start relative recovery of {tgt_mkr_name} ...')
+def recover_marker_rel(itf, tgt_mkr_name, cl_mkr_names, log=False):
+    """
+    Recover the trajectory of a marker using the relation between a group (cluster) of markers.
+    
+    The number of cluster marker names is fixed as 3.
+    This function extrapolates the target marker coordinates for the frames where the cluster markers are available.
+    
+    First cluster marker (cl_mkr_names[0]) will be used as the origin of the LCS(Local Coordinate System).
+    Second cluster marker (cl_mkr_names[1]) will be used in order to determine the X axis of the LCS.
+    Third cluster marker (cl_mkr_names[2]) will be used in order to determine the XY plane of the LCS.    
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    tgt_mkr_name : str
+        Target marker name.
+    cl_mkr_names : list or tuple
+        Cluster (group) marker names.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+    int
+        Number of valid frames in the target marker after this function.
+        
+    Notes
+    -----
+    This function is adapted from 'recover_marker_rel()' function in the GapFill module, see [1] in the References.   
+    
+    References
+    ----------
+    .. [1] https://github.com/mkjung99/gapfill
+    
+    """
+    if log: logger.debug(f'Start recovery of {tgt_mkr_name} ...')
     n_total_frs = get_num_frames(itf)
     tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
     tgt_mkr_coords = tgt_mkr_data[:,0:3]
@@ -1848,10 +1885,10 @@ def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, log=False):
     tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
     n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
     if n_tgt_mkr_valid_frs == 0:
-        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: no valid target marker frame!')
+        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: no valid target marker frame!')
         return False, n_tgt_mkr_valid_frs
     if n_tgt_mkr_valid_frs == n_total_frs:
-        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: all target marker frames valid!')
+        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: all target marker frames valid!')
         return False, n_tgt_mkr_valid_frs
     dict_cl_mkr_coords = {}
     dict_cl_mkr_valid = {}
@@ -1863,22 +1900,17 @@ def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, log=False):
         cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
     all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
     if not np.any(all_mkr_valid_mask):
-        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: no common valid frame among markers!')
+        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: no common valid frame among markers!')
         return False, n_tgt_mkr_valid_frs
     cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
     if not np.any(cl_mkr_only_valid_mask):
-        if log: logger.info(f'Relative recovery of {tgt_mkr_name} skipped: cluster markers not helpful!')
+        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: cluster markers not helpful!')
         return False, n_tgt_mkr_valid_frs
     all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
     cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
-    dict_cl_mkr_dist = {}
-    for mkr_name in cl_mkr_names:
-        vec_diff = dict_cl_mkr_coords[mkr_name]-tgt_mkr_coords
-        dict_cl_mkr_dist.update({mkr_name: np.nanmean(np.linalg.norm(vec_diff, axis=1))})
-    cl_mkr_dist_sorted = sorted(dict_cl_mkr_dist.items(), key=lambda kv: kv[1])
-    p0 = dict_cl_mkr_coords[cl_mkr_dist_sorted[0][0]]
-    p1 = dict_cl_mkr_coords[cl_mkr_dist_sorted[1][0]]
-    p2 = dict_cl_mkr_coords[cl_mkr_dist_sorted[2][0]] 
+    p0 = dict_cl_mkr_coords[cl_mkr_names[0]]
+    p1 = dict_cl_mkr_coords[cl_mkr_names[1]]
+    p2 = dict_cl_mkr_coords[cl_mkr_names[2]] 
     vec0 = p1-p0
     vec1 = p2-p0
     vec0_norm = np.linalg.norm(vec0, axis=1, keepdims=True)
@@ -1913,38 +1945,72 @@ def recover_marker_relative(itf, tgt_mkr_name, cl_mkr_names, log=False):
     update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
     update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
     n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-    if log: logger.info(f'Relative recovery of {tgt_mkr_name} is finished.')
+    if log: logger.info(f'Recovery of {tgt_mkr_name} is finished.')
     return True, n_tgt_mkr_valid_frs_updated
 
-def recover_marker_rigidbody(itf, tgt_mkr_name, cl_mkr_names, msg=False):
-    if msg: print("Rigidbody recovery of %s ... " % tgt_mkr_name, end="")   
+def recover_marker_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
+    """
+    Recover the trajectory of a marker by rbt(rigid body transformation) using a group (cluster) markers.
+    
+    The number of cluster marker names is fixed as 3.
+    This function extrapolates the target marker coordinates for the frames where the cluster markers are available.
+    The order of the cluster markers will be sorted according to their relative distances from the target marker.    
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    tgt_mkr_name : str
+        Target marker name.
+    cl_mkr_names : list or tuple
+        Cluster (group) marker names.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+    int
+        Number of valid frames in the target marker after this function.
+
+    Notes
+    -----
+    This function is adapted from 'recover_marker_rbt()' function in the GapFill module, see [1] in the References.   
+    
+    References
+    ----------
+    .. [1] https://github.com/mkjung99/gapfill
+    
+    """
+    if log: logger.debug(f'Start recovery of {tgt_mkr_name} ...')
     n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, msg=msg)
+    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
     tgt_mkr_coords = tgt_mkr_data[:,0:3]
     tgt_mkr_resid = tgt_mkr_data[:,3]
     tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
     n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
     if n_tgt_mkr_valid_frs == 0:
-        if msg: print("Skipped: no valid target marker frame!")
+        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: no valid target marker frame!')
         return False, n_tgt_mkr_valid_frs
     if n_tgt_mkr_valid_frs == n_total_frs:
-        if msg: print("Skipped: all target marker frames valid!")
+        if log: logger.info('Recovery of {tgt_mkr_name} skipped: all target marker frames valid!')
         return False, n_tgt_mkr_valid_frs    
     dict_cl_mkr_coords = {}
     dict_cl_mkr_valid = {}
     cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
     for mkr in cl_mkr_names:
-        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, msg=msg)
+        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
         dict_cl_mkr_coords[mkr] = mkr_data[:,0:3]
         dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
         cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
     all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
     if not np.any(all_mkr_valid_mask):
-        if msg: print("Skipped: no common valid frame among markers!")
+        if log: logger.info('Recovery of {tgt_mkr_name} skipped: no common valid frame among markers!')
         return False, n_tgt_mkr_valid_frs
     cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
     if not np.any(cl_mkr_only_valid_mask):
-        if msg: print("Skipped: cluster markers not helpful!")
+        if log: logger.info('Recovery of {tgt_mkr_name} skipped: cluster markers not helpful!')
         return False, n_tgt_mkr_valid_frs
     all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
     cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
@@ -1995,50 +2061,82 @@ def recover_marker_rigidbody(itf, tgt_mkr_name, cl_mkr_names, msg=False):
             vc = (b*vt_fr0+a*vt_fr1)/(a+b)
         tgt_mkr_coords[fr] = p0[fr]+vc
         tgt_mkr_resid[fr] = 0.0
-    update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, msg=msg)
-    update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, msg=msg)
+    update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+    update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
     n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-    if msg: print("Updated.")
+    if log: logger.info(f'Recovery of {tgt_mkr_name} is finished.')
     return True, n_tgt_mkr_valid_frs_updated
 
-def fill_marker_gap_rigidbody(itf, tgt_mkr_name, cl_mkr_names, msg=False):
+def fill_marker_gap_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
+    """
+    Fill the gaps in the trajectory of a marker by rbt(rigid body transformation) using a group (cluster) markers.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    tgt_mkr_name : str
+        Target marker name.
+    cl_mkr_names : list or tuple
+        Cluster (group) marker names.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+    int
+        Number of valid frames in the target marker after this function.
+
+    Notes
+    -----
+    This function is adapted from 'fill_marker_gap_rbt()' function in the GapFill module, see [1] in the References.   
+    
+    References
+    ----------
+    .. [1] https://github.com/mkjung99/gapfill
+    
+    """
     def RBT(A, B):
-        C = np.dot((B-np.mean(B, axis=0)).T, (A-np.mean(A, axis=0)))  
+        Ac = A.mean(axis=0)
+        Bc = B.mean(axis=0)
+        C = np.dot((B-Bc).T, (A-Ac))
         U, S, Vt = np.linalg.svd(C)
         R = np.dot(U, np.dot(np.diag([1, 1, np.linalg.det(np.dot(U, Vt))]), Vt))
-        L = B.mean(0)-np.dot(R, A.mean(0))
-        err_vec = np.dot(R, A.T).T+L-B
+        t = Bc-np.dot(R, Ac)
+        err_vec = np.dot(R, A.T).T+t-B
         err_norm = np.linalg.norm(err_vec, axis=1)
         mean_err_norm = np.mean(err_norm)
-        return R, L, err_vec, err_norm, mean_err_norm
-    if msg: print("Rigidbody gap fill of %s ... " % tgt_mkr_name, end="")     
+        return R, t, err_vec, err_norm, mean_err_norm
+    if log: logger.debug(f'Start gap filling of {tgt_mkr_name} ...')     
     n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, msg=msg)
+    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
     tgt_mkr_coords = tgt_mkr_data[:,0:3]
     tgt_mkr_resid = tgt_mkr_data[:,3]
     tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
     n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
     if n_tgt_mkr_valid_frs == 0:
-        if msg: print("Skipped: no valid target marker frame!")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid target marker frame!')
         return False, n_tgt_mkr_valid_frs
     if n_tgt_mkr_valid_frs == n_total_frs:
-        if msg: print("Skipped: all target marker frames valid!")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: all target marker frames valid!')
         return False , n_tgt_mkr_valid_frs   
     dict_cl_mkr_coords = {}
     dict_cl_mkr_valid = {}
     cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
     for mkr in cl_mkr_names:
-        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, msg=msg)
+        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
         dict_cl_mkr_coords[mkr] = mkr_data[:,0:3]
         dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
         cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
     all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
     if not np.any(all_mkr_valid_mask):
-        if msg: print("Skipped: no common valid frame among markers!")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no common valid frame among markers!')
         return False, n_tgt_mkr_valid_frs
     cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
     if not np.any(cl_mkr_only_valid_mask):
-        if msg: print("Skipped: cluster markers not helpful!")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: cluster markers not helpful!')
         return False, n_tgt_mkr_valid_frs
     all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
     cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
@@ -2072,36 +2170,69 @@ def fill_marker_gap_rigidbody(itf, tgt_mkr_name, cl_mkr_names, msg=False):
         tgt_mkr_resid[fr] = 0.0        
         b_updated = True        
     if b_updated:
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, msg=msg)
-        update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, msg=msg)
+        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+        update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
         n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if msg: print("Updated.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} is finished.')
         return True, n_tgt_mkr_valid_frs_updated
     else:
-        if msg: print("Skipped.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} is skipped.')
         return False, n_tgt_mkr_valid_frs
 
-def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, msg=False):
-    if msg: print("Pattern gap fill of %s using %s ... " % (tgt_mkr_name, dnr_mkr_name), end="")
+def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
+    """
+    Fill the gaps in a given target marker coordinates using the donor marker coordinates by linear interpolation.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    tgt_mkr_name : str
+        Target marker name.
+    dnr_mkr_name : str
+        Donor marker name.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+    int
+        Number of valid frames in the target marker after this function.
+
+    Notes
+    -----
+    This function is adapted from 'fill_marker_gap_pattern()' function in the GapFill module, see [1] in the References.   
+    
+    References
+    ----------
+    .. [1] https://github.com/mkjung99/gapfill
+    
+    """
+    if log: logger.debug(f'Start gap filling of {tgt_mkr_name} ...')    
     n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, msg=msg)
+    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
     tgt_mkr_coords = tgt_mkr_data[:, 0:3]
     tgt_mkr_resid = tgt_mkr_data[:, 3]
     tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
     n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
-    if n_tgt_mkr_valid_frs==0 or n_tgt_mkr_valid_frs==n_total_frs:
-        if msg: print("Skipped.")
+    if n_tgt_mkr_valid_frs == 0:
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid target marker frame!')
         return False, n_tgt_mkr_valid_frs
-    dnr_mkr_data = get_marker_data(itf, dnr_mkr_name, blocked_nan=False, msg=msg)
+    if n_tgt_mkr_valid_frs == n_total_frs:
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: all target marker frames valid!')
+        return False , n_tgt_mkr_valid_frs    
+    dnr_mkr_data = get_marker_data(itf, dnr_mkr_name, blocked_nan=False, log=log)
     dnr_mkr_coords = dnr_mkr_data[:, 0:3]
     dnr_mkr_resid = dnr_mkr_data[:, 3]
     dnr_mkr_valid_mask = np.where(np.isclose(dnr_mkr_resid, -1), False, True)
     if not np.any(dnr_mkr_valid_mask):
-        if msg: print("Skipped.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid donor marker frame!')
         return False, n_tgt_mkr_valid_frs    
     both_mkr_valid_mask = np.logical_and(tgt_mkr_valid_mask, dnr_mkr_valid_mask)
     if not np.any(both_mkr_valid_mask):
-        if msg: print("Skipped.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid common frame between target and donor markers!')
         return False, n_tgt_mkr_valid_frs        
     b_updated = False
     tgt_mkr_invalid_frs = np.where(~tgt_mkr_valid_mask)[0]
@@ -2127,13 +2258,13 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, msg=False):
         tgt_mkr_resid[fr] = 0.0        
         b_updated = True
     if b_updated:
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, msg=msg)
-        update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, msg=msg)
+        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, log=log)
+        update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, log=log)
         n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if msg: print("Updated.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} is finished.')
         return True, n_tgt_mkr_valid_frs_updated
     else:
-        if msg: print("Skipped.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} is skipped.')
         return False, n_tgt_mkr_valid_frs
 
 def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_needed_frs=10, msg=False):
