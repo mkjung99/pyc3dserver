@@ -2203,7 +2203,7 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
 
     Notes
     -----
-    This function is adapted from 'fill_marker_gap_pattern()' function in the GapFill module, see [1] in the References.   
+    This function is adapted from 'fill_marker_gap_pattern2()' function in the GapFill module, see [1] in the References.   
     
     References
     ----------
@@ -2267,17 +2267,54 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
         if log: logger.info(f'Gap filling of {tgt_mkr_name} is skipped.')
         return False, n_tgt_mkr_valid_frs
 
-def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_needed_frs=10, msg=False):
-    if msg: print("Interp gap fill of %s ... " % tgt_mkr_name, end="") 
+def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_needed_frs=10, log=False):
+    """
+    Fill the gaps in a given target marker coordinates using scipy.interpolate.InterpolatedUnivariateSpline function.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM interface of the C3DServer.
+    tgt_mkr_name : str
+        Target marker name.
+    k : int, optional
+        Degrees of smoothing spline. The default is 3.
+    search_span_offset : int, optional
+        Offset for backward and forward search spans. The default is 5.
+    min_needed_frs : int, optional
+        Minimum required valid frames in a search span. The default is 10.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+    int
+        Number of valid frames in the target marker after this function.
+
+    Notes
+    -----
+    This function is adapted from 'fill_marker_gap_interp()' function in the GapFill module, see [1] in the References.   
+    
+    References
+    ----------
+    .. [1] https://github.com/mkjung99/gapfill
+    
+    """
+    if log: logger.debug(f'Start gap filling of {tgt_mkr_name} ...')
     n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, msg=msg)
+    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
     tgt_mkr_coords = tgt_mkr_data[:, 0:3]
     tgt_mkr_resid = tgt_mkr_data[:, 3]
     tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
-    n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
-    if n_tgt_mkr_valid_frs==0 or n_tgt_mkr_valid_frs==n_total_frs:
-        if msg: print("Skipped.")
+    n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)    
+    if n_tgt_mkr_valid_frs == 0:
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid target marker frame!')
         return False, n_tgt_mkr_valid_frs
+    if n_tgt_mkr_valid_frs == n_total_frs:
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: all target marker frames valid!')
+        return False , n_tgt_mkr_valid_frs     
     b_updated = False
     tgt_mkr_invalid_frs = np.where(~tgt_mkr_valid_mask)[0]
     tgt_mkr_invalid_gaps = np.split(tgt_mkr_invalid_frs, np.where(np.diff(tgt_mkr_invalid_frs)!=1)[0]+1)
@@ -2307,13 +2344,13 @@ def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_nee
             tgt_mkr_resid[fr] = 0.0        
         b_updated = True            
     if b_updated:
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, msg=msg)
-        update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, msg=msg)
+        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+        update_marker_residual(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
         n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if msg: print("Updated.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} is finished.')
         return True, n_tgt_mkr_valid_frs_updated
     else:
-        if msg: print("Skipped.")
+        if log: logger.info(f'Gap filling of {tgt_mkr_name} is skipped.')
         return False, n_tgt_mkr_valid_frs
     
 def export_marker_coords_vicon_csv(itf, f_path, sep=',', fmt='%.6g', tgt_mkr_names=None):
