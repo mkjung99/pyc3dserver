@@ -1,5 +1,5 @@
 # PyC3Dserver
-Python interface for C3Dserver software
+Python interface of C3Dserver software for reading and editing C3D motion capture files
 
 ## Prerequisites
 C3Dserver x64 edition (for Windows x64 platforms) installation: https://www.c3dserver.com/
