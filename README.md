@@ -15,7 +15,7 @@ pip install pyc3dserver
 C3Dserver x64 edition (for Windows x64 platforms) installation: https://www.c3dserver.com/
 
 ## Usage
-Most of numerical inputs and outputs using PyC3Dserver will be in form of NumPy arrays. So it is recommended to import NumPy as well.
+Most of numerical inputs and outputs using PyC3Dserver will be in the form of NumPy arrays. So it is recommended to import NumPy as well.
 ```python
 import numpy as np
 ```
