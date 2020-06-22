@@ -8,7 +8,7 @@ setuptools.setup(
     version="0.0.1",
     author="Moon Ki Jung",
     author_email="m.k.jung@outlook.com",
-    description="PyC3Dserver: Python interface of C3Dserver software for reading and editing C3D motion capture files",
+    description="PyC3Dserver: Python interface of C3Dserver software for reading and editing C3D motion capture files.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/mkjung99/pyc3dserver",
