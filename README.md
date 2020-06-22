@@ -25,22 +25,30 @@ import pyc3dserver as c3d
 ```
 You can get the COM object of C3Dserver like this. You need to use this COM object while you are working with PyC3Dserver module.
 ```python
+# Get the COM object of C3Dserver
 itf = c3d.c3dserver()
 ```
 Then, you can open a C3D file.
 ```python
+# Open a C3D file
 ret = c3d.open_c3d(itf, "sample.c3d")
 ```
 Following functions are most useful in order extract the information from a C3D file. All the outputs are python dictionary types.
 ```python
+# For the information of header
 dict_header = c3d.get_dict_header(itf)
+# For the information of all groups
 dict_groups = c3d.get_dict_groups(itf)
+# For the information of all markers(points)
 dict_markers = c3d.get_dict_markers(itf)
+# For the information of all forces/moments
 dict_forces = c3d.get_dict_forces(itf)
+# For the information of all analogs(excluding or including forces/moments)
 dict_analogs = c3d.get_dict_analogs(itf)
 ```
 After all your processes, it is recommended to close the open C3D file from C3Dserver.
 ```python
+# Close the open file from C3Dserver
 ret = c3d.close_c3d(itf)
 ```
 
