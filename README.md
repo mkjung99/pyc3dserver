@@ -15,7 +15,7 @@ pip install pyc3dserver
 C3Dserver x64 edition (for Windows x64 platforms) installation: https://www.c3dserver.com/
 
 ## Usage
-Most of numerial inputs will be in form of numpy arrays. So it is recommended to import numpy as well.
+Most of numerical inputs and outputs using PyC3Dserver will be in form of NumPy arrays. So it is recommended to import NumPy as well.
 ```python
 import numpy as np
 ```
@@ -52,9 +52,9 @@ After all your processes, it is recommended to close the open C3D file from C3Ds
 ret = c3d.close_c3d(itf)
 ```
 
-
 ## Examples
-Find the [examples](https://github.com/mkjung99/pyc3dserver_examples).
+There are more functions to get the information of individual markers and analogs. Also there are other functions for editing C3D files.
+You can find some examples [here](https://github.com/mkjung99/pyc3dserver_examples).
 
 ## Dependencies
 - PyWin32: ([GitHub](https://github.com/mhammond/pywin32), [PyPI](https://pypi.org/project/pywin32/), [Anaconda](https://anaconda.org/anaconda/pywin32))
