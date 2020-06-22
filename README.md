@@ -13,6 +13,7 @@ Find the [examples](https://github.com/mkjung99/pyc3dserver_examples)
 - SciPy: ([Website](https://www.scipy.org/), [PyPI](https://pypi.org/project/scipy/), [Anaconda](https://anaconda.org/anaconda/scipy))
 
 ## References
-- [C3Dserver.com](https://www.c3dserver.com/)
 - [C3D.ORG](https://www.c3d.org/)
+- [C3Dserver.com](https://www.c3dserver.com/)
 - [Motion Lab Systems, Inc.](https://www.motion-labs.com/)
+- [PyWin32](https://github.com/mhammond/pywin32)
