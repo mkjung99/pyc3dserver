@@ -9,6 +9,6 @@ C3Dserver x64 edition (for Windows x64 platforms) installation: https://www.c3ds
 - NumPy: ([Website](https://numpy.org/), [PyPI](https://pypi.org/project/numpy/), [Anaconda](https://anaconda.org/anaconda/numpy))
 - SciPy: ([Website](https://www.scipy.org/))
 
-## Acknowledgement
+## References
 - [C3D.ORG](https://www.c3d.org/)
-- [Motion Lab Systems, Inc.](https://www.motion-labs.com/) for C3Dserver free version
+- [Motion Lab Systems, Inc.](https://www.motion-labs.com/)
