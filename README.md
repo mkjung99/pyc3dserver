@@ -48,7 +48,7 @@ dict_analogs = c3d.get_dict_analogs(itf)
 ```
 After all your processes, it is recommended to close the C3D file from C3Dserver.
 ```python
-# Close the open file from C3Dserver
+# Close the C3D file from C3Dserver
 ret = c3d.close_c3d(itf)
 ```
 
