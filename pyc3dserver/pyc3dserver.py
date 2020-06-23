@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, https://github.com/mkjung99/pyc3dserver'
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
 import os
 import pythoncom
