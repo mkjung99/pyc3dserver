@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, https://github.com/mkjung99/pyc3dserver'
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 import os
 import pythoncom
@@ -1686,8 +1686,8 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
         A new marker name.
     mkr_coords : numpy array
         A numpy array of new marker coordinates.
-    mkr_resid : numpy array
-        A numpy array of new marker residuals.        
+    mkr_resid : numpy array or None, optional
+        A numpy array of new marker residuals. The default is None.
     mkr_desc: str or None, optional
         Description of a new marker.
     log : bool, optional
@@ -1737,7 +1737,7 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
     new_mkr_idx = itf.AddMarker()
     n_mkrs = itf.GetNumber3DPoints()
     mkr_null_mask = np.any(np.isnan(mkr_coords), axis=1)
-    mkr_resid_adjusted = np.zeros((n_frs, ), dtype=np.float32) if mkr_resid is None else np.asarray(mkr_resid, dtype=np.float32)
+    mkr_resid_adjusted = np.zeros((n_frs, ), dtype=np.float32) if mkr_resid is None else np.array(mkr_resid, dtype=np.float32)
     mkr_resid_adjusted[mkr_null_mask] = -1
     mkr_masks = np.array(['0000000']*n_frs, dtype = np.string_)
     mkr_scale = get_marker_scale(itf)
