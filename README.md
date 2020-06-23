@@ -31,7 +31,7 @@ itf = c3d.c3dserver()
 Then, you can open a C3D file.
 ```python
 # Open a C3D file
-ret = c3d.open_c3d(itf, "sample.c3d")
+ret = c3d.open_c3d(itf, "sample_file.c3d")
 ```
 Following functions are the most useful ones to extract the information from a C3D file. All the outputs are python dictionary types.
 ```python
@@ -49,7 +49,7 @@ dict_analogs = c3d.get_dict_analogs(itf)
 If you made any modification in the C3Dserver and want to save it, you need to use the following function explicitly.
 ```python
 # Save the C3D file from C3Dserver
-ret = c3d.save_c3d(itf, "new.c3d")
+ret = c3d.save_c3d(itf, "new_file.c3d")
 ```
 After all your processes, it is recommended to close the C3D file from C3Dserver.
 ```python
