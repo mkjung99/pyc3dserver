@@ -66,3 +66,9 @@ You can find some examples [here](https://github.com/mkjung99/pyc3dserver_exampl
 - [C3Dserver.com](https://www.c3dserver.com/)
 - [Motion Lab Systems, Inc.](https://www.motion-labs.com/)
 - [PyWin32](https://github.com/mhammond/pywin32)
+
+## How to cite this work (all versions)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3903913.svg)](https://doi.org/10.5281/zenodo.3903913)
+
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
