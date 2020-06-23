@@ -68,7 +68,7 @@ You can find some examples [here](https://github.com/mkjung99/pyc3dserver_exampl
 - [PyWin32](https://github.com/mhammond/pywin32)
 
 ## How to cite this work (all versions)
-- Please check the lastet version on the link: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3903913.svg)](https://doi.org/10.5281/zenodo.3903913)
+- Zenodo DOI: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3903914.svg)](https://doi.org/10.5281/zenodo.3903914)
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
