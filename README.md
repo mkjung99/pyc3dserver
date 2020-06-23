@@ -15,7 +15,7 @@ pip install pyc3dserver
 C3Dserver x64 edition (for Windows x64 platforms) installation: https://www.c3dserver.com/
 
 ## Usage
-Most of numerical inputs and outputs using PyC3Dserver will be in the form of NumPy arrays. So it is recommended to import NumPy as well.
+Most of numerical inputs and outputs for PyC3Dserver will be in the form of NumPy arrays. So let's import NumPy module.
 ```python
 import numpy as np
 ```
@@ -33,7 +33,7 @@ Then, you can open a C3D file.
 # Open a C3D file
 ret = c3d.open_c3d(itf, "sample.c3d")
 ```
-Following functions are most useful in order extract the information from a C3D file. All the outputs are python dictionary types.
+Following functions are the most useful ones to extract the information from a C3D file. All the outputs are python dictionary types.
 ```python
 # For the information of header
 dict_header = c3d.get_dict_header(itf)
@@ -46,7 +46,7 @@ dict_forces = c3d.get_dict_forces(itf)
 # For the information of all analogs(excluding or including forces/moments)
 dict_analogs = c3d.get_dict_analogs(itf)
 ```
-After all your processes, it is recommended to close the open C3D file from C3Dserver.
+After all your processes, it is recommended to close the C3D file from C3Dserver.
 ```python
 # Close the open file from C3Dserver
 ret = c3d.close_c3d(itf)
