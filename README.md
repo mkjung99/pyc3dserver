@@ -46,6 +46,11 @@ dict_forces = c3d.get_dict_forces(itf)
 # For the information of all analogs(excluding or including forces/moments)
 dict_analogs = c3d.get_dict_analogs(itf)
 ```
+If you made any modification in the C3Dserver and want to save it, you need to use the following function explicitly.
+```python
+# Save the C3D file from C3Dserver
+ret = c3d.save_c3d(itf, "new.c3d")
+```
 After all your processes, it is recommended to close the C3D file from C3Dserver.
 ```python
 # Close the C3D file from C3Dserver
