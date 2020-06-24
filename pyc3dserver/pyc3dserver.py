@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, https://github.com/mkjung99/pyc3dserver'
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 
 import os
 import pythoncom
@@ -1440,11 +1440,7 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
     idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
     if idx_analog_labels == -1:
         if log: logger.debug('No ANALOG:LABELS parameter!')
-        return None    
-    idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
-    if idx_analog_units == -1:
-        if log: logger.debug('No ANALOG:UNITS parameter!')
-        return None     
+        return None       
     idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
     if idx_analog_scale == -1:
         if log: logger.debug('No ANALOG:SCALE parameter!')
@@ -1453,6 +1449,12 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
     if idx_analog_offset == -1:
         if log: logger.debug('No ANALOG:OFFSET parameter!')
         return None
+    idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
+    if idx_analog_units == -1:
+        if log: logger.debug('No ANALOG:UNITS parameter!')
+        n_analog_units = 0
+    else:
+        n_analog_units = itf.GetParameterLength(idx_analog_units)
     idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
     if idx_analog_desc == -1:
         if log: logger.debug('No ANALOG:DESCRIPTIONS parameter!')
@@ -1473,12 +1475,14 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
         ch_idx = itf.GetParameterValue(idx_force_chs, i)-1
         ch_name = itf.GetParameterValue(idx_analog_labels, ch_idx)
         force_names.append(ch_name)
-        ch_unit = itf.GetParameterValue(idx_analog_units, ch_idx)
-        force_units.append(ch_unit)
-        sig_scale = np.float32(itf.GetParameterValue(idx_analog_scale, ch_idx))
-        sig_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx)))
-        sig_val = (np.array(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
-        dict_forces['DATA'].update({ch_name: sig_val})
+        ch_scale = np.float32(itf.GetParameterValue(idx_analog_scale, ch_idx))
+        ch_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx)))
+        ch_val = (np.array(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-ch_offset)*ch_scale*gen_scale
+        dict_forces['DATA'].update({ch_name: ch_val})
+        if ch_idx < n_analog_units:
+            force_units.append(itf.GetParameterValue(idx_analog_units, ch_idx))
+        else:
+            force_units.append('')
         if desc:
             if ch_idx < n_analog_desc:
                 force_descs.append(itf.GetParameterValue(idx_analog_desc, ch_idx))
@@ -1489,7 +1493,8 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
         n_analog_rate = itf.GetParameterLength(idx_analog_rate)
         if n_analog_rate == 1:
             dict_forces.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
-    dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
+    if idx_analog_units != -1:
+        dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
     dict_forces.update({'LABELS': np.array(force_names, dtype=str)})
     if desc: dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
     if frame: dict_forces.update({'FRAME': get_analog_frames(itf)})
@@ -1540,14 +1545,18 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
     idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
     if idx_analog_labels == -1:
         if log: logger.debug('No ANALOG:LABELS parameter!')
+        return None
+    n_analog_labels = itf.GetParameterLength(idx_analog_labels)
+    if n_analog_labels < 1:
+        if log: logger.debug('No item under ANALOG:LABELS parameter!')
         return None    
     idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
     if idx_analog_used == -1:
         if log: logger.debug('No ANALOG:USED parameter!')
-        return None      
-    idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
-    if idx_analog_units == -1:
-        if log: logger.debug('No ANALOG:UNITS parameter!')
+        return None
+    n_analog_used = itf.GetParameterValue(idx_analog_used, 0)
+    if n_analog_used < 1:
+        if log: logger.debug(f'ANALOG:USED is zero!')
         return None    
     idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
     if idx_analog_scale == -1:
@@ -1557,14 +1566,12 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
     if idx_analog_offset == -1:
         if log: logger.debug('No ANALOG:OFFSET parameter!')
         return None
-    n_analog_labels = itf.GetParameterLength(idx_analog_labels)
-    if n_analog_labels < 1:
-        if log: logger.debug('No item under ANALOG:LABELS parameter!')
-        return None
-    n_analog_used = itf.GetParameterValue(idx_analog_used, 0)
-    if n_analog_used < 1:
-        if log: logger.debug(f'ANALOG:USED is zero!')
-        return None
+    idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
+    if idx_analog_units == -1:
+        if log: logger.debug('No ANALOG:UNITS parameter!')
+        n_analog_units = 0
+    else:
+        n_analog_units = itf.GetParameterLength(idx_analog_units)
     idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
     if idx_analog_desc == -1:
         if log: logger.debug('No ANALOG:DESCRIPTIONS parameter!')
@@ -1583,14 +1590,16 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
     for i in range(n_analog_labels):
         if i < n_analog_used:
             if i in force_ch_idx: continue
-            ch_name = itf.GetParameterValue(idx_analog_labels, i)
-            analog_names.append(ch_name)
-            ch_unit = itf.GetParameterValue(idx_analog_units, i)
-            analog_units.append(ch_unit)
+            sig_name = itf.GetParameterValue(idx_analog_labels, i)
+            analog_names.append(sig_name)
             sig_scale = np.float32(itf.GetParameterValue(idx_analog_scale, i))
             sig_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, i)))
             sig_val = (np.array(itf.GetAnalogDataEx(i, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
-            dict_analogs['DATA'].update({ch_name: sig_val})
+            dict_analogs['DATA'].update({sig_name: sig_val})
+            if i < n_analog_units:
+                analog_units.append(itf.GetParameterValue(idx_analog_units, i))
+            else:
+                analog_units.append('')
             if desc:
                 if i < n_analog_desc:
                     analog_descs.append(itf.GetParameterValue(idx_analog_desc, i))
@@ -1601,7 +1610,8 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
         n_analog_rate = itf.GetParameterLength(idx_analog_rate)
         if n_analog_rate == 1:
             dict_analogs.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
-    dict_analogs.update({'UNITS': np.array(analog_units, dtype=str)})
+    if idx_analog_units != -1:
+        dict_analogs.update({'UNITS': np.array(analog_units, dtype=str)})
     dict_analogs.update({'LABELS': np.array(analog_names, dtype=str)})
     if desc: dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
     if frame: dict_analogs.update({'FRAME': get_analog_frames(itf)})
