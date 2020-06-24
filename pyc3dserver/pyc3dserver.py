@@ -1380,6 +1380,7 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
                     mkr_descs.append(itf.GetParameterValue(idx_pt_desc, i))
                 else:
                     mkr_descs.append('')
+    dict_pts.update({'LABELS': np.array(mkr_names, dtype=str)})
     idx_pt_rate = itf.GetParameterIndex('POINT', 'RATE')
     if idx_pt_rate != -1:
         n_pt_rate = itf.GetParameterLength(idx_pt_rate)
@@ -1391,8 +1392,7 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
         n_pt_units = itf.GetParameterLength(idx_pt_units)
         if n_pt_units == 1:
             unit = itf.GetParameterValue(idx_pt_units, 0)
-            dict_pts.update({'UNITS': unit})            
-    dict_pts.update({'LABELS': np.array(mkr_names, dtype=str)})
+            dict_pts.update({'UNITS': unit})
     if desc: dict_pts.update({'DESCRIPTIONS': np.array(mkr_descs, dtype=str)})            
     if frame: dict_pts.update({'FRAME': get_video_frames(itf)})
     if time: dict_pts.update({'TIME': get_video_times(itf)})
@@ -1488,6 +1488,7 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
                 force_descs.append(itf.GetParameterValue(idx_analog_desc, ch_idx))
             else:
                 force_descs.append('')
+    dict_forces.update({'LABELS': np.array(force_names, dtype=str)})
     idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
     if idx_analog_rate != -1:
         n_analog_rate = itf.GetParameterLength(idx_analog_rate)
@@ -1495,7 +1496,6 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
             dict_forces.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
     if idx_analog_units != -1:
         dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
-    dict_forces.update({'LABELS': np.array(force_names, dtype=str)})
     if desc: dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
     if frame: dict_forces.update({'FRAME': get_analog_frames(itf)})
     if time: dict_forces.update({'TIME': get_analog_times(itf)})
@@ -1605,6 +1605,7 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
                     analog_descs.append(itf.GetParameterValue(idx_analog_desc, i))
                 else:
                     analog_descs.append('')
+    dict_analogs.update({'LABELS': np.array(analog_names, dtype=str)})
     idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
     if idx_analog_rate != -1:
         n_analog_rate = itf.GetParameterLength(idx_analog_rate)
@@ -1612,7 +1613,6 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
             dict_analogs.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
     if idx_analog_units != -1:
         dict_analogs.update({'UNITS': np.array(analog_units, dtype=str)})
-    dict_analogs.update({'LABELS': np.array(analog_names, dtype=str)})
     if desc: dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
     if frame: dict_analogs.update({'FRAME': get_analog_frames(itf)})
     if time: dict_analogs.update({'TIME': get_analog_times(itf)})
