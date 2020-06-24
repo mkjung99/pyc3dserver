@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, https://github.com/mkjung99/pyc3dserver'
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 import os
 import pythoncom
@@ -1393,7 +1393,9 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
         if n_pt_units == 1:
             unit = itf.GetParameterValue(idx_pt_units, 0)
             dict_pts.update({'UNITS': unit})
-    if desc: dict_pts.update({'DESCRIPTIONS': np.array(mkr_descs, dtype=str)})            
+    if desc:
+        if idx_pt_desc != -1:
+            dict_pts.update({'DESCRIPTIONS': np.array(mkr_descs, dtype=str)})
     if frame: dict_pts.update({'FRAME': get_video_frames(itf)})
     if time: dict_pts.update({'TIME': get_video_times(itf)})
     return dict_pts
@@ -1496,7 +1498,9 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
             dict_forces.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
     if idx_analog_units != -1:
         dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
-    if desc: dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
+    if desc:
+        if idx_analog_desc != -1:
+            dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
     if frame: dict_forces.update({'FRAME': get_analog_frames(itf)})
     if time: dict_forces.update({'TIME': get_analog_times(itf)})
     return dict_forces
@@ -1613,7 +1617,9 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
             dict_analogs.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
     if idx_analog_units != -1:
         dict_analogs.update({'UNITS': np.array(analog_units, dtype=str)})
-    if desc: dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
+    if desc:
+        if idx_analog_desc != -1:
+            dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
     if frame: dict_analogs.update({'FRAME': get_analog_frames(itf)})
     if time: dict_analogs.update({'TIME': get_analog_times(itf)})
     return dict_analogs
