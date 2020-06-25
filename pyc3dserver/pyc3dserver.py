@@ -719,7 +719,7 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
         
     """
     mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return None
+    if mkr_idx == -1 or mkr_idx is None: return None
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     n_frs = end_fr-start_fr+1
@@ -766,7 +766,7 @@ def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=No
     
     """
     mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return None
+    if mkr_idx == -1 or mkr_idx is None: return None
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     n_frs = end_fr-start_fr+1
@@ -824,7 +824,7 @@ def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=N
     Ideally, get_marker_pos2() should return as same results as get_marker_pos() function.
     """
     mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return None
+    if mkr_idx == -1 or mkr_idx is None: return None
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     n_frs = end_fr-start_fr+1
@@ -871,7 +871,7 @@ def get_marker_resid(itf, mkr_name, start_frame=None, end_frame=None, log=False)
 
     """
     mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return None
+    if mkr_idx == -1 or mkr_idx is None: return None
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
@@ -1036,7 +1036,7 @@ def get_analog_unit(itf, sig_name, log=False):
 
     """
     sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1: return None
+    if sig_idx == -1 or sig_idx is None: return None
     par_idx = itf.GetParameterIndex('ANALOG', 'UNITS')
     if par_idx == -1:
         if log: logger.debug('No ANALOG:UNITS parameter!')
@@ -1064,7 +1064,7 @@ def get_analog_scale(itf, sig_name, log=False):
 
     """
     sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1: return None
+    if sig_idx == -1 or sig_idx is None: return None
     par_idx = itf.GetParameterIndex('ANALOG', 'SCALE')
     if par_idx == -1:
         if log: logger.debug('No ANALOG:SCALE parameter!')
@@ -1092,7 +1092,7 @@ def get_analog_offset(itf, sig_name, log=False):
 
     """
     sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1: return None
+    if sig_idx == -1 or sig_idx is None: return None
     par_idx = itf.GetParameterIndex('ANALOG', 'OFFSET')
     if par_idx == -1:
         if log: logger.debug('No ANALOG:OFFSET parameter!')
@@ -1127,7 +1127,7 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, lo
 
     """
     sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1: return None
+    if sig_idx == -1 or sig_idx is None: return None
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     sig_format = get_analog_format(itf)
@@ -1165,7 +1165,7 @@ def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, log=
 
     """
     sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1: return None
+    if sig_idx == -1 or sig_idx is None: return None
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
@@ -1195,7 +1195,7 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log
 
     """
     sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1: return None
+    if sig_idx == -1 or sig_idx is None: return None
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
     if not fr_check: return None
     gen_scale = get_analog_gen_scale(itf)
@@ -1646,7 +1646,7 @@ def change_marker_name(itf, mkr_name_old, mkr_name_new, log=False):
 
     """
     mkr_idx = get_marker_index(itf, mkr_name_old, log)
-    if mkr_idx == -1: return False
+    if mkr_idx == -1 or mkr_idx is None: return False
     par_idx = itf.GetParameterIndex('POINT', 'LABELS')
     if par_idx == -1:
         if log: logger.debug('No POINT:LABELS parameter!')
@@ -1678,7 +1678,7 @@ def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
 
     """
     sig_idx = get_analog_index(itf, sig_name_old, log)
-    if sig_idx == -1: return False
+    if sig_idx == -1 or sig_idx is None: return False
     par_idx = itf.GetParameterIndex('ANALOG', 'LABELS')
     if par_idx == -1:
         if log: logger.debug('No ANALOG:LABELS parameter!')
@@ -1952,7 +1952,7 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
         if log: logger.warning('The dimension of the input is not compatible!')
         return False    
     mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return False
+    if mkr_idx == -1 or mkr_idx is None: return False
     mkr_scale = get_marker_scale(itf)
     is_c3d_float = mkr_scale < 0
     is_c3d_float2 = [False, True][itf.GetDataType()-1]
@@ -2008,7 +2008,7 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
         if log: logger.warning('The dimension of the input is not compatible!')
         return False
     mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1: return False
+    if mkr_idx == -1 or mkr_idx is None: return False
     dtype = pythoncom.VT_R4
     dtype_arr = pythoncom.VT_ARRAY|dtype
     variant = win32.VARIANT(dtype_arr, mkr_resid)
