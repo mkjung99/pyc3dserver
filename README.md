@@ -61,6 +61,10 @@ ret = c3d.close_c3d(itf)
 There are more functions to get the information of individual markers and analogs. Also there are other functions for editing C3D files.
 You can find some examples [here](https://github.com/mkjung99/pyc3dserver_examples).
 
+## Limitations
+PyC3Dserver tries to implement some useful functions using several C3Dserver features, but it does not cover full potential features of C3Dserver.
+You can develop your own functions using the COM object of C3Dserver in Python.
+
 ## Dependencies
 - PyWin32: ([GitHub](https://github.com/mhammond/pywin32), [PyPI](https://pypi.org/project/pywin32/), [Anaconda](https://anaconda.org/anaconda/pywin32))
 - NumPy: ([Website](https://numpy.org/), [PyPI](https://pypi.org/project/numpy/), [Anaconda](https://anaconda.org/anaconda/numpy))
@@ -71,6 +75,10 @@ You can find some examples [here](https://github.com/mkjung99/pyc3dserver_exampl
 - [C3Dserver.com](https://www.c3dserver.com/)
 - [Motion Lab Systems, Inc.](https://www.motion-labs.com/)
 - [PyWin32](https://github.com/mhammond/pywin32)
+
+## Python IDE recommendation
+- [Spyder](https://www.spyder-ide.org/) for MATLAB friendly users
+- [Visual Studio Code](https://code.visualstudio.com/)
 
 ## How to cite this work (all versions)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3903914.svg)](https://doi.org/10.5281/zenodo.3903914)
