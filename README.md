@@ -62,7 +62,7 @@ There are more functions to get the information of individual markers and analog
 You can find some examples [here](https://github.com/mkjung99/pyc3dserver_examples).
 
 ## Limitations
-PyC3Dserver tries to implement some useful functions using several C3Dserver features, but it does not cover full potential features of C3Dserver.
+PyC3Dserver tries to implement some useful functions using C3Dserver internally, but it does not cover full potential features of C3Dserver.
 You can develop your own functions using the COM object of C3Dserver in Python.
 
 ## Dependencies
