@@ -80,7 +80,7 @@ You can develop your own functions using the COM object of C3Dserver in Python.
 - [Spyder](https://www.spyder-ide.org/) for MATLAB friendly users
 - [Visual Studio Code](https://code.visualstudio.com/)
 
-## How to cite this work (all versions)
+## How to cite this work
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3908713.svg)](https://doi.org/10.5281/zenodo.3908713)
 
 ## License
