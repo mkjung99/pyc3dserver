@@ -81,7 +81,7 @@ You can develop your own functions using the COM object of C3Dserver in Python.
 - [Visual Studio Code](https://code.visualstudio.com/)
 
 ## How to cite this work (all versions)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3903914.svg)](https://doi.org/10.5281/zenodo.3903914)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3908713.svg)](https://doi.org/10.5281/zenodo.3908713)
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
