@@ -2,7 +2,7 @@
 Python interface of C3Dserver software for reading and editing C3D motion capture files.
 
 ## Description
-PyC3Dserver is a python interace of C3Dserver using PyWin32.
+PyC3Dserver is a python inteface of C3Dserver using PyWin32.
 
 ## Installation
 PyC3Dserver can be installed from [PyPI](https://pypi.org/project/pyc3dserver/) using ```pip``` on Python>=3.7.
