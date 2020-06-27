@@ -28,6 +28,7 @@ __version__ = '0.0.7'
 import os
 import pythoncom
 import win32com.client as win32
+import traceback
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 import logging
@@ -92,7 +93,7 @@ def reset_logger():
     logger.setLevel('CRITICAL')       
     return None
 
-def c3dserver(msg=True):
+def c3dserver(msg=True, log=False):
     """
     Initialize C3DServer COM interface using win32com.client.Dispatch().
     
@@ -103,6 +104,8 @@ def c3dserver(msg=True):
     ----------
     msg : bool, optional
         Whether to show the information of C3Dserver. The default is True.
+    log: bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -110,21 +113,40 @@ def c3dserver(msg=True):
         COM object of the C3Dserver.
 
     """
-    itf = win32.Dispatch('C3DServer.C3D')
-    # itf = win32.dynamic.Dispatch('C3DServer.C3D')
+    try:
+        itf = win32.Dispatch('C3DServer.C3D')
+        # itf = win32.dynamic.Dispatch('C3DServer.C3D')
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None        
+    reg_mode = itf.GetRegistrationMode()
+    ver = itf.GetVersion()
+    user_name = itf.GetRegUserName()
+    user_org = itf.GetRegUserOrganization()
     if msg:
         print('=============================================')
-        reg_mode = itf.GetRegistrationMode()
         if reg_mode == 0:
             print('Unregistered C3Dserver')
         elif reg_mode == 1:
             print('Evaluation C3Dserver')
         elif reg_mode == 2:
             print('Registered C3Dserver')
-        print('Version: ', itf.GetVersion())
-        print('User: ', itf.GetRegUserName())
-        print('Organization: ', itf.GetRegUserOrganization())
+        print('Version: ', ver)
+        print('User: ', user_name)
+        print('Organization: ', user_org)
         print('=============================================')
+    if log:
+        if reg_mode == 0:
+            logger.info('Unregistered C3Dserver')
+        elif reg_mode == 1:
+            logger.info('Evaluation C3Dserver')
+        elif reg_mode == 2:
+            logger.info('Registered C3Dserver')        
+        logger.info(f'Version: {ver}')
+        logger.info(f'User: {user_name}')
+        logger.info(f'Organization: {user_org}')
     return itf
 
 def open_c3d(itf, f_path, log=False):
@@ -150,7 +172,13 @@ def open_c3d(itf, f_path, log=False):
     if not os.path.exists(f_path):
         if log: logger.error('File path does not exist!')
         return False
-    ret = itf.Open(f_path, 3)
+    try:
+        ret = itf.Open(f_path, 3)
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return False        
     if ret == 0:
         if log: logger.info(f'File is opened successfully.')
         return True
@@ -183,7 +211,13 @@ def save_c3d(itf, f_path='', f_type=-1, log=False):
 
     """
     if log: logger.debug(f'Saving the file: "{f_path}"')
-    ret = itf.SaveFile(f_path, f_type)
+    try:
+        ret = itf.SaveFile(f_path, f_type)
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return False
     if ret == 1:
         if log: logger.info(f'File is saved successfully.')
         return True
@@ -202,6 +236,8 @@ def close_c3d(itf, log=False):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log: bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -213,7 +249,7 @@ def close_c3d(itf, log=False):
     return itf.Close()
 
 
-def get_file_type(itf):
+def get_file_type(itf, log=False):
     """
     Return the file type of an open C3D file.
 
@@ -221,6 +257,8 @@ def get_file_type(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log: bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -228,10 +266,17 @@ def get_file_type(itf):
         File type.
 
     """
-    dict_file_type = {1:'INTEL', 2:'DEC', 3:'SGI'}
-    return dict_file_type.get(itf.GetFileType(), None)
+    dict_f_type = {1:'INTEL', 2:'DEC', 3:'SGI'}
+    try:
+        f_type = itf.GetFileType()
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None      
+    return dict_f_type.get(f_type, None)
 
-def get_data_type(itf):
+def get_data_type(itf, log=False):
     """
     Return the data type of an open C3D file.
 
@@ -239,6 +284,8 @@ def get_data_type(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log: bool, optional
+        Whether to write logs or not. The default is False.
 
     Returns
     -------
@@ -247,9 +294,16 @@ def get_data_type(itf):
 
     """
     dict_data_type = {1:'INTEGER', 2:'REAL'}
-    return dict_data_type.get(itf.GetDataType(), None)
+    try:
+        data_type = itf.GetDataType()
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None    
+    return dict_data_type.get(data_type, None)
 
-def get_first_frame(itf):
+def get_first_frame(itf, log=False):
     """
     Give you the first frame of video data from an open C3D file.
     
@@ -261,6 +315,8 @@ def get_first_frame(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log: bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -268,9 +324,16 @@ def get_first_frame(itf):
         The first 3D frame number.
 
     """
-    return np.int32(itf.GetVideoFrame(0))
+    try:
+        first_fr = itf.GetVideoFrame(0)
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None    
+    return np.int32(first_fr)
 
-def get_last_frame(itf):
+def get_last_frame(itf, log=False):
     """
     Give you the last frame of video data from an open C3D file.
     
@@ -282,6 +345,8 @@ def get_last_frame(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log: bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -289,9 +354,16 @@ def get_last_frame(itf):
         The last 3D frame number.
 
     """
-    return np.int32(itf.GetVideoFrame(1))
+    try:
+        last_fr = itf.GetVideoFrame(1)
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None
+    return np.int32(last_fr)
 
-def get_num_frames(itf):
+def get_num_frames(itf, log=False):
     """
     Get the total number of frames in an open C3D file.
 
@@ -299,6 +371,8 @@ def get_num_frames(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log: bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -306,7 +380,19 @@ def get_num_frames(itf):
         The total number of 3D frames.
 
     """
-    return np.int32(get_last_frame(itf)-get_first_frame(itf)+1)
+    try:
+        last_fr = get_last_frame(itf, log)
+        first_fr = get_first_frame(itf, log)
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None
+    if first_fr is None or last_fr is None:
+        if log: logger.error('There is an error in getting either the first or the last frame number!')
+        return None
+    n_frs = last_fr-first_fr+1
+    return np.int32(n_frs)
 
 def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
     """
@@ -333,24 +419,33 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
         Valid end frame.
 
     """
-    first_fr = get_first_frame(itf)
-    last_fr = get_last_frame(itf)
+    try:
+        first_fr = get_first_frame(itf, log)
+        last_fr = get_last_frame(itf, log)
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return False, None, None
+    if first_fr is None or last_fr is None:
+        if log: logger.error('There is an error in getting either the first or the last frame number!')
+        return False, None, None
     if start_frame is None:
         start_fr = first_fr
     else:
         if start_frame < first_fr:
-            if log: logger.warning(f'"start_frame" should be equal or greater than {first_fr}!')
+            if log: logger.error(f'"start_frame" should be equal or greater than {first_fr}!')
             return False, None, None
         start_fr = start_frame
     if end_frame is None:
         end_fr = last_fr
     else:
         if end_frame > last_fr:
-            if log: logger.warning(f'"end_frame" should be equal or less than {last_fr}!')
+            if log: logger.error(f'"end_frame" should be equal or less than {last_fr}!')
             return False, None, None
         end_fr = end_frame
     if not (start_fr < end_fr):
-        if log: logger.warning(f'Please provide a correct combination of "start_frame" and "end_frame"!')
+        if log: logger.error(f'Please provide a correct combination of "start_frame" and "end_frame"!')
         return False, None, None
     return True, start_fr, end_fr    
 
@@ -1719,11 +1814,11 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
     start_fr = get_first_frame(itf)
     n_frs = get_num_frames(itf)
     if not (mkr_coords.ndim == 2 and mkr_coords.shape[0] == n_frs and mkr_coords.shape[1] == 3):
-        if log: logger.warning('The dimension of the input marker coordinates are not valid!')
+        if log: logger.error('The dimension of the input marker coordinates are not valid!')
         return False
     if mkr_resid is not None:
         if not (mkr_resid.ndim == 1 and mkr_resid.shape[0] == n_frs):
-            if log: logger.warning('The dimension of the input marker residuals are not valid!')
+            if log: logger.error('The dimension of the input marker residuals are not valid!')
             return False
     ret = 0
     # Check the value 'POINT:USED'
@@ -1734,7 +1829,7 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
     n_pt_labels_before = itf.GetParameterLength(par_idx_pt_labels)
     # Skip if 'POINT:USED' and 'POINT:LABELS' have different numbers
     if n_pt_used_before != n_pt_labels_before:
-        if log: logger.warning('This function only works if POINT:USED is as same as the number of items under POINT:LABELS!')
+        if log: logger.error('This function only works if POINT:USED is as same as the number of items under POINT:LABELS!')
         return False
     # Add an parameter to the 'POINT:LABELS' section
     # par_idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
@@ -1828,7 +1923,7 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
     n_frs = get_num_frames(itf)
     av_ratio = get_analog_video_ratio(itf)
     if sig_value.ndim!=1 or sig_value.shape[0]!=(n_frs*av_ratio):
-        if log: logger.warning('The dimension of the input is not compatible!')
+        if log: logger.error('The dimension of the input is not compatible!')
         return False
     # Check 'ANALOG:USED'
     n_idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
@@ -1838,7 +1933,7 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
     n_cnt_analog_labels_before = itf.GetParameterLength(n_idx_analog_labels)
     # Skip if 'ANALOG:USED' and 'ANALOG:LABELS' have different numbers
     if n_cnt_analog_used_before != n_cnt_analog_labels_before:
-        if log: logger.warning('This function only works if ANALOG:USED is as same as the number of items under ANALOG:LABELS!')
+        if log: logger.error('This function only works if ANALOG:USED is as same as the number of items under ANALOG:LABELS!')
         return False    
     # Add an parameter to the 'ANALOG:LABELS' section
     n_idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
@@ -1912,10 +2007,10 @@ def delete_frames(itf, start_frame, num_frames, log=False):
 
     """
     if start_frame < get_first_frame(itf):
-        if log: logger.warning(f'Given start frame number should be equal or greater than {get_first_frame(itf)} for the open file!')
+        if log: logger.error(f'Given start frame number should be equal or greater than {get_first_frame(itf)} for the open file!')
         return None
     elif start_frame >= get_last_frame(itf):
-        if log: logger.warning(f'Given start frame number should be less than {get_last_frame(itf)} for the open file!')
+        if log: logger.error(f'Given start frame number should be less than {get_last_frame(itf)} for the open file!')
         return None
     n_frs_updated = itf.DeleteFrames(start_frame, num_frames)
     return n_frs_updated
@@ -1945,11 +2040,11 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
     """
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
     if not fr_check:
-        if log: logger.warning('Given "start_frame" is not proper!')
+        if log: logger.error('Given "start_frame" is not proper!')
         return False
     n_frs = end_fr-start_fr+1
     if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
-        if log: logger.warning('The dimension of the input is not compatible!')
+        if log: logger.error('The dimension of the input is not compatible!')
         return False    
     mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1 or mkr_idx is None: return False
@@ -2001,11 +2096,11 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
     """
     fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
     if not fr_check: 
-        if log: logger.warning('Given "start_frame" is not proper!')
+        if log: logger.error('Given "start_frame" is not proper!')
         return False
     n_frs = end_fr-start_fr+1
     if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
-        if log: logger.warning('The dimension of the input is not compatible!')
+        if log: logger.error('The dimension of the input is not compatible!')
         return False
     mkr_idx = get_marker_index(itf, mkr_name, log)
     if mkr_idx == -1 or mkr_idx is None: return False
