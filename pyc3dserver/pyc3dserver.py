@@ -380,14 +380,8 @@ def get_num_frames(itf, log=False):
         The total number of 3D frames.
 
     """
-    try:
-        last_fr = get_last_frame(itf, log)
-        first_fr = get_first_frame(itf, log)
-    except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err.excepinfo[2])
-        return None
+    last_fr = get_last_frame(itf, log)
+    first_fr = get_first_frame(itf, log)
     if first_fr is None or last_fr is None:
         if log: logger.error('There is an error in getting either the first or the last frame number!')
         return None
@@ -419,14 +413,8 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
         Valid end frame.
 
     """
-    try:
-        first_fr = get_first_frame(itf, log)
-        last_fr = get_last_frame(itf, log)
-    except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err.excepinfo[2])
-        return False, None, None
+    first_fr = get_first_frame(itf, log)
+    last_fr = get_last_frame(itf, log)
     if first_fr is None or last_fr is None:
         if log: logger.error('There is an error in getting either the first or the last frame number!')
         return False, None, None
