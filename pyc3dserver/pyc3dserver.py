@@ -179,6 +179,7 @@ def open_c3d(itf, f_path, strict_param_check=False, log=False):
         if strict_param_check:
             itf.SetStrictParameterChecking(1)
         else:
+            itf.SetStrictParameterChecking(0)        
     except pythoncom.com_error as err:
         if not (log and logger.isEnabledFor(logging.ERROR)):
             print(traceback.format_exc())
