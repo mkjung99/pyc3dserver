@@ -149,7 +149,7 @@ def c3dserver(msg=True, log=False):
         logger.info(f'Organization: {user_org}')
     return itf
 
-def open_c3d(itf, f_path, log=False):
+def open_c3d(itf, f_path, strict_param_check=False, log=False):
     """
     Open a C3D file.
 
@@ -159,6 +159,8 @@ def open_c3d(itf, f_path, log=False):
         COM object of the C3Dserver.
     f_path : str
         Path of the input C3D file to open.
+    strict_param_check: bool, optional
+        Whether to enable strict parameter checking or not. The deafult is False.
     log: bool, optional
         Whether to write logs or not. The default is False.
 
@@ -174,6 +176,9 @@ def open_c3d(itf, f_path, log=False):
         return False
     try:
         ret = itf.Open(f_path, 3)
+        if strict_param_check:
+            itf.SetStrictParameterChecking(1)
+        else:
     except pythoncom.com_error as err:
         if not (log and logger.isEnabledFor(logging.ERROR)):
             print(traceback.format_exc())
@@ -186,7 +191,7 @@ def open_c3d(itf, f_path, log=False):
         if log: logger.info(f'File can not be opened.')
         return False
 
-def save_c3d(itf, f_path='', f_type=-1, log=False):
+def save_c3d(itf, f_path='', f_type=-1, compress_param_blocks=False, log=False):
     """
     Save a C3D file.
     
@@ -201,6 +206,8 @@ def save_c3d(itf, f_path='', f_type=-1, log=False):
     f_type : int, optional
         Type of saving file. -1 means that the data is saved to the existing file type.
         1 for Intel(MS-DOS) format, 2 for DEC format, 3 for SGI format.
+    compress_param_blocks: bool, optional
+        Whether to remove any empty parameter blocks when the C3D file is saved. The default is False.
     log: bool, optional
         Whether to write logs or not. The default is False.        
 
@@ -212,6 +219,10 @@ def save_c3d(itf, f_path='', f_type=-1, log=False):
     """
     if log: logger.debug(f'Saving the file: "{f_path}"')
     try:
+        if compress_param_blocks:
+            itf.CompressParameterBlocks(1)
+        else:
+            itf.CompressParameterBlocks(0)
         ret = itf.SaveFile(f_path, f_type)
     except pythoncom.com_error as err:
         if not (log and logger.isEnabledFor(logging.ERROR)):
