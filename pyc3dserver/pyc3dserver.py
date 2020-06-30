@@ -449,7 +449,7 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
         return False, None, None
     return True, start_fr, end_fr    
 
-def get_video_fps(itf):
+def get_video_fps(itf, log=False):
     """
     Return the 3D point sample rate in Hertz as read from the C3D file header.
     
@@ -457,6 +457,8 @@ def get_video_fps(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -464,9 +466,16 @@ def get_video_fps(itf):
         Video frame rate in Hz from the header.
 
     """
-    return np.float32(itf.GetVideoFrameRate())
+    try:
+        vid_fps = itf.GetVideoFrameRate()
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None    
+    return np.float32(vid_fps)
 
-def get_analog_video_ratio(itf):
+def get_analog_video_ratio(itf, log=False):
     """
     Return the number of analog frames stored for each video frame in the C3D file.
 
@@ -474,6 +483,8 @@ def get_analog_video_ratio(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -481,9 +492,16 @@ def get_analog_video_ratio(itf):
         The number of analog frames collected per video frame.
 
     """
-    return np.int32(itf.GetAnalogVideoRatio())
+    try:
+        av_ratio = itf.GetAnalogVideoRatio()
+    except pythoncom.com_error as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err.excepinfo[2])
+        return None    
+    return np.int32(av_ratio)
 
-def get_analog_fps(itf):
+def get_analog_fps(itf, log=False):
     """
     Return the analog sample rate in Hertz in the C3D file.
 
@@ -491,6 +509,8 @@ def get_analog_fps(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -498,7 +518,13 @@ def get_analog_fps(itf):
         Analog sample rate in Hz.
 
     """
-    return np.float32(get_video_fps(itf)*np.float32(get_analog_video_ratio(itf)))
+    vid_fps = get_video_fps(itf, log)
+    av_ratio = get_analog_video_ratio(itf, log)
+    if vid_fps is None or av_ratio is None:
+        if log: logger.error('There is an error in getting necessary information!')
+        return None    
+    # return np.float32(get_video_fps(itf)*np.float32(get_analog_video_ratio(itf)))
+    return np.float32(vid_fps*np.float32(av_ratio))
 
 def get_video_frames(itf):
     """
