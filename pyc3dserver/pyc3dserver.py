@@ -171,8 +171,14 @@ def open_c3d(itf, f_path, strict_param_check=False, log=False):
 
     """
     if log: logger.debug(f'Opening the file: "{f_path}"')
-    if not os.path.exists(f_path):
-        if log: logger.error('File path does not exist!')
+    try:
+        if not os.path.exists(f_path):
+            err_msg = 'File path does not exist!'
+            raise FileNotFoundError(err_msg)
+    except FileNotFoundError as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err)
         return False
     try:
         ret = itf.Open(f_path, 3)
@@ -392,10 +398,16 @@ def get_num_frames(itf, log=False):
         The total number of 3D frames.
 
     """
-    last_fr = get_last_frame(itf, log)
-    first_fr = get_first_frame(itf, log)
-    if first_fr is None or last_fr is None:
-        if log: logger.error('There is an error in getting either the first or the last frame number!')
+    try:
+        first_fr = get_first_frame(itf, log)
+        last_fr = get_last_frame(itf, log)
+        if first_fr is None or last_fr is None:
+            err_msg = 'Error in getting either the first or the last frame number!'
+            raise RuntimeError(err_msg)
+    except RuntimeError as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err)
         return None
     n_frs = last_fr-first_fr+1
     return np.int32(n_frs)
@@ -427,27 +439,63 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
     """
     first_fr = get_first_frame(itf, log)
     last_fr = get_last_frame(itf, log)
-    if first_fr is None or last_fr is None:
-        if log: logger.error('There is an error in getting either the first or the last frame number!')
-        return False, None, None
+    try:
+        if first_fr is None or last_fr is None:
+            err_msg = 'Error in getting either the first or the last frame number!'
+            raise RuntimeError(err_msg)
+    except RuntimeError as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err)
+        return False, None, None  
+    # if first_fr is None or last_fr is None:
+    #     if log: logger.error('There is an error in getting either the first or the last frame number!')
+    #     return False, None, None
     if start_frame is None:
         start_fr = first_fr
     else:
-        if start_frame < first_fr:
-            if log: logger.error(f'"start_frame" should be equal or greater than {first_fr}!')
-            return False, None, None
+        try:
+            if start_frame < first_fr:
+                err_msg = f'"start_frame" should be equal or greater than {first_fr}!'
+                raise ValueError(err_msg)
+        except ValueError as err:
+            if not (log and logger.isEnabledFor(logging.ERROR)):
+                print(traceback.format_exc())
+            if log: logger.error(err)
+            return False, None, None        
+        # if start_frame < first_fr:
+        #     if log: logger.error(f'"start_frame" should be equal or greater than {first_fr}!')
+        #     return False, None, None
         start_fr = start_frame
     if end_frame is None:
         end_fr = last_fr
     else:
-        if end_frame > last_fr:
-            if log: logger.error(f'"end_frame" should be equal or less than {last_fr}!')
+        try:
+            if end_frame > last_fr:
+                err_msg = f'"end_frame" should be equal or less than {last_fr}!'
+                raise ValueError(err_msg)
+        except ValueError as err:
+            if not (log and logger.isEnabledFor(logging.ERROR)):
+                print(traceback.format_exc())
+            if log: logger.error(err)
             return False, None, None
+        # if end_frame > last_fr:
+        #     if log: logger.error(f'"end_frame" should be equal or less than {last_fr}!')
+        #     return False, None, None
         end_fr = end_frame
-    if not (start_fr < end_fr):
-        if log: logger.error(f'Please provide a correct combination of "start_frame" and "end_frame"!')
-        return False, None, None
-    return True, start_fr, end_fr    
+    try:
+        if not (start_fr < end_fr):
+            err_msg = f'Please provide a correct combination of "start_frame" and "end_frame"!'
+            raise ValueError(err_msg)
+    except ValueError as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err)
+        return False, None, None        
+    # if not (start_fr < end_fr):
+    #     if log: logger.error(f'Please provide a correct combination of "start_frame" and "end_frame"!')
+    #     return False, None, None
+    return True, start_fr, end_fr
 
 def get_video_fps(itf, log=False):
     """
@@ -518,15 +566,20 @@ def get_analog_fps(itf, log=False):
         Analog sample rate in Hz.
 
     """
-    vid_fps = get_video_fps(itf, log)
-    av_ratio = get_analog_video_ratio(itf, log)
-    if vid_fps is None or av_ratio is None:
-        if log: logger.error('There is an error in getting necessary information!')
-        return None    
-    # return np.float32(get_video_fps(itf)*np.float32(get_analog_video_ratio(itf)))
+    try:
+        vid_fps = get_video_fps(itf, log)
+        av_ratio = get_analog_video_ratio(itf, log)
+        if vid_fps is None or av_ratio is None:
+            err_msg = 'Error in getting necessary information!'
+            raise RuntimeError(err_msg)
+    except RuntimeError as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err)
+        return None
     return np.float32(vid_fps*np.float32(av_ratio))
 
-def get_video_frames(itf):
+def get_video_frames(itf, log=False):
     """
     Return an integer-type numpy array that contains the video frame numbers between the start and the end frames.
 
@@ -534,6 +587,8 @@ def get_video_frames(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -541,13 +596,22 @@ def get_video_frames(itf):
         An integer-type numpy array of the video frame numbers.
 
     """
-    start_fr = get_first_frame(itf)
-    end_fr = get_last_frame(itf)
-    n_frs = end_fr-start_fr+1
-    frs = np.linspace(start=start_fr, stop=end_fr, num=n_frs, dtype=np.int32)
+    try:
+        first_fr = get_first_frame(itf, log)
+        last_fr = get_last_frame(itf, log)    
+        if first_fr is None or last_fr is None:
+            err_msg = 'Error in getting either the first or the last frame number!'
+            raise RuntimeError(err_msg)
+    except RuntimeError as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err)
+        return None   
+    n_frs = last_fr-first_fr+1
+    frs = np.linspace(start=first_fr, stop=last_fr, num=n_frs, dtype=np.int32)
     return frs
 
-def get_analog_frames(itf):
+def get_analog_frames(itf, log=False):
     """
     Return a float-type numpy array that contains the analog frame numbers.
 
@@ -555,6 +619,8 @@ def get_analog_frames(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -562,10 +628,25 @@ def get_analog_frames(itf):
         A float-type numpy array of the analog frame numbers.
 
     """
-    av_ratio = get_analog_video_ratio(itf)
-    start_fr = np.float32(get_first_frame(itf))
-    end_fr = np.float32(get_last_frame(itf))+np.float32(av_ratio-1)/np.float32(av_ratio)
-    analog_steps = get_num_frames(itf)*av_ratio
+    try:
+        first_fr = get_first_frame(itf, log)
+        last_fr = get_last_frame(itf, log)  
+        if first_fr is None or last_fr is None:
+            err_msg = 'Error in getting either the first or the last frame number!'
+            raise RuntimeError(err_msg)
+        av_ratio = get_analog_video_ratio(itf, log)
+        if av_ratio is None:
+            err_msg = 'Error in getting analog-video ratio!'
+            raise RuntimeError(err_msg)            
+    except RuntimeError as err:
+        if not (log and logger.isEnabledFor(logging.ERROR)):
+            print(traceback.format_exc())
+        if log: logger.error(err)
+        return None  
+    start_fr = np.float32(first_fr)
+    end_fr = np.float32(last_fr)+np.float32(av_ratio-1)/np.float32(av_ratio)
+    n_frs = last_fr-first_fr+1
+    analog_steps = n_frs*av_ratio
     frs = np.linspace(start=start_fr, stop=end_fr, num=analog_steps, dtype=np.float32)
     return frs
 
