@@ -74,7 +74,6 @@ You can develop your own functions using the COM object of C3Dserver in Python.
 - [C3D.ORG](https://www.c3d.org/)
 - [C3Dserver.com](https://www.c3dserver.com/)
 - [Motion Lab Systems, Inc.](https://www.motion-labs.com/)
-- [PyWin32](https://github.com/mhammond/pywin32)
 
 ## Python IDE recommendation
 - [Spyder](https://www.spyder-ide.org/) for MATLAB friendly users
