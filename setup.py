@@ -5,8 +5,8 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pyc3dserver",
-    version="0.0.7",
-    author="Moon Ki Jung",
+    version="0.0.8",
+    author="Moon Ki Jung (et al.)",
     author_email="m.k.jung@outlook.com",
     description="Python interface of C3Dserver software for reading and editing C3D motion capture files.",
     long_description=long_description,

@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2020 Moon Ki Jung
+Copyright (c) 2020 Moon Ki Jung, Dario Farina
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,13 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-__author__ = 'Moon Ki Jung, https://github.com/mkjung99/pyc3dserver'
-__version__ = '0.0.7'
+__author__ = 'Moon Ki Jung, Dario Farina'
+__version__ = '0.0.8'
 
 import os
 import pythoncom
 import win32com.client as win32
-import traceback
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 import logging
@@ -117,10 +116,8 @@ def c3dserver(msg=True, log=False):
         itf = win32.Dispatch('C3DServer.C3D')
         # itf = win32.dynamic.Dispatch('C3DServer.C3D')
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err.excepinfo[2])
-        return None        
+        if log: logger.error(err.strerror)
+        raise     
     reg_mode = itf.GetRegistrationMode()
     ver = itf.GetVersion()
     user_name = itf.GetRegUserName()
@@ -173,13 +170,11 @@ def open_c3d(itf, f_path, strict_param_check=False, log=False):
     if log: logger.debug(f'Opening the file: "{f_path}"')
     try:
         if not os.path.exists(f_path):
-            err_msg = 'File path does not exist!'
+            err_msg = 'File path does not exist'
             raise FileNotFoundError(err_msg)
     except FileNotFoundError as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err)
-        return False
+        raise
     try:
         ret = itf.Open(f_path, 3)
         if strict_param_check:
@@ -187,15 +182,13 @@ def open_c3d(itf, f_path, strict_param_check=False, log=False):
         else:
             itf.SetStrictParameterChecking(0)        
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return False        
+        raise
     if ret == 0:
-        if log: logger.info(f'File is opened successfully.')
+        if log: logger.info(f'File is opened successfully')
         return True
     else:
-        if log: logger.info(f'File can not be opened.')
+        if log: logger.info(f'File can not be opened')
         return False
 
 def save_c3d(itf, f_path='', f_type=-1, compress_param_blocks=False, log=False):
@@ -232,17 +225,14 @@ def save_c3d(itf, f_path='', f_type=-1, compress_param_blocks=False, log=False):
             itf.CompressParameterBlocks(0)
         ret = itf.SaveFile(f_path, f_type)
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return False
+        raise
     if ret == 1:
-        if log: logger.info(f'File is saved successfully.')
+        if log: logger.info(f'File is saved successfully')
         return True
     else:
-        if log: logger.info(f'File can not be saved.')
+        if log: logger.info(f'File can not be saved')
         return False
-    return 
 
 def close_c3d(itf, log=False):
     """
@@ -263,7 +253,7 @@ def close_c3d(itf, log=False):
         None.
 
     """
-    if log: logger.info(f'File is closed.')
+    if log: logger.info(f'File is closed')
     return itf.Close()
 
 
@@ -288,10 +278,8 @@ def get_file_type(itf, log=False):
     try:
         f_type = itf.GetFileType()
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return None      
+        raise      
     return dict_f_type.get(f_type, None)
 
 def get_data_type(itf, log=False):
@@ -315,10 +303,8 @@ def get_data_type(itf, log=False):
     try:
         data_type = itf.GetDataType()
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return None    
+        raise    
     return dict_data_type.get(data_type, None)
 
 def get_first_frame(itf, log=False):
@@ -345,10 +331,8 @@ def get_first_frame(itf, log=False):
     try:
         first_fr = itf.GetVideoFrame(0)
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return None    
+        raise    
     return np.int32(first_fr)
 
 def get_last_frame(itf, log=False):
@@ -375,10 +359,8 @@ def get_last_frame(itf, log=False):
     try:
         last_fr = itf.GetVideoFrame(1)
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return None
+        raise
     return np.int32(last_fr)
 
 def get_num_frames(itf, log=False):
@@ -401,14 +383,9 @@ def get_num_frames(itf, log=False):
     try:
         first_fr = get_first_frame(itf, log)
         last_fr = get_last_frame(itf, log)
-        if first_fr is None or last_fr is None:
-            err_msg = 'Error in getting either the first or the last frame number!'
-            raise RuntimeError(err_msg)
-    except RuntimeError as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err)
-        return None
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
     n_frs = last_fr-first_fr+1
     return np.int32(n_frs)
 
@@ -437,65 +414,34 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
         Valid end frame.
 
     """
-    first_fr = get_first_frame(itf, log)
-    last_fr = get_last_frame(itf, log)
     try:
-        if first_fr is None or last_fr is None:
-            err_msg = 'Error in getting either the first or the last frame number!'
-            raise RuntimeError(err_msg)
-    except RuntimeError as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err)
-        return False, None, None  
-    # if first_fr is None or last_fr is None:
-    #     if log: logger.error('There is an error in getting either the first or the last frame number!')
-    #     return False, None, None
-    if start_frame is None:
-        start_fr = first_fr
-    else:
-        try:
+        first_fr = get_first_frame(itf, log)
+        last_fr = get_last_frame(itf, log)
+        if start_frame is None:
+            start_fr = first_fr
+        else:
             if start_frame < first_fr:
-                err_msg = f'"start_frame" should be equal or greater than {first_fr}!'
+                err_msg = f'"start_frame" should be equal or greater than {first_fr}'
                 raise ValueError(err_msg)
-        except ValueError as err:
-            if not (log and logger.isEnabledFor(logging.ERROR)):
-                print(traceback.format_exc())
-            if log: logger.error(err)
-            return False, None, None        
-        # if start_frame < first_fr:
-        #     if log: logger.error(f'"start_frame" should be equal or greater than {first_fr}!')
-        #     return False, None, None
-        start_fr = start_frame
-    if end_frame is None:
-        end_fr = last_fr
-    else:
-        try:
+            start_fr = start_frame
+        if end_frame is None:
+            end_fr = last_fr
+        else:
             if end_frame > last_fr:
-                err_msg = f'"end_frame" should be equal or less than {last_fr}!'
+                err_msg = f'"end_frame" should be equal or less than {last_fr}'
                 raise ValueError(err_msg)
-        except ValueError as err:
-            if not (log and logger.isEnabledFor(logging.ERROR)):
-                print(traceback.format_exc())
-            if log: logger.error(err)
-            return False, None, None
-        # if end_frame > last_fr:
-        #     if log: logger.error(f'"end_frame" should be equal or less than {last_fr}!')
-        #     return False, None, None
-        end_fr = end_frame
-    try:
+            end_fr = end_frame
         if not (start_fr < end_fr):
-            err_msg = f'Please provide a correct combination of "start_frame" and "end_frame"!'
-            raise ValueError(err_msg)
+            err_msg = f'"end_frame" should be greater than "start_frame"'
+            raise ValueError(err_msg)        
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
     except ValueError as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err)
-        return False, None, None        
-    # if not (start_fr < end_fr):
-    #     if log: logger.error(f'Please provide a correct combination of "start_frame" and "end_frame"!')
-    #     return False, None, None
-    return True, start_fr, end_fr
+        raise
+    else:
+        return True, start_fr, end_fr
 
 def get_video_fps(itf, log=False):
     """
@@ -517,10 +463,8 @@ def get_video_fps(itf, log=False):
     try:
         vid_fps = itf.GetVideoFrameRate()
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return None    
+        raise    
     return np.float32(vid_fps)
 
 def get_analog_video_ratio(itf, log=False):
@@ -543,10 +487,8 @@ def get_analog_video_ratio(itf, log=False):
     try:
         av_ratio = itf.GetAnalogVideoRatio()
     except pythoncom.com_error as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
         if log: logger.error(err.excepinfo[2])
-        return None    
+        raise    
     return np.int32(av_ratio)
 
 def get_analog_fps(itf, log=False):
@@ -569,14 +511,9 @@ def get_analog_fps(itf, log=False):
     try:
         vid_fps = get_video_fps(itf, log)
         av_ratio = get_analog_video_ratio(itf, log)
-        if vid_fps is None or av_ratio is None:
-            err_msg = 'Error in getting necessary information!'
-            raise RuntimeError(err_msg)
-    except RuntimeError as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err)
-        return None
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
     return np.float32(vid_fps*np.float32(av_ratio))
 
 def get_video_frames(itf, log=False):
@@ -598,15 +535,10 @@ def get_video_frames(itf, log=False):
     """
     try:
         first_fr = get_first_frame(itf, log)
-        last_fr = get_last_frame(itf, log)    
-        if first_fr is None or last_fr is None:
-            err_msg = 'Error in getting either the first or the last frame number!'
-            raise RuntimeError(err_msg)
-    except RuntimeError as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err)
-        return None   
+        last_fr = get_last_frame(itf, log)
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise 
     n_frs = last_fr-first_fr+1
     frs = np.linspace(start=first_fr, stop=last_fr, num=n_frs, dtype=np.int32)
     return frs
@@ -631,18 +563,10 @@ def get_analog_frames(itf, log=False):
     try:
         first_fr = get_first_frame(itf, log)
         last_fr = get_last_frame(itf, log)  
-        if first_fr is None or last_fr is None:
-            err_msg = 'Error in getting either the first or the last frame number!'
-            raise RuntimeError(err_msg)
         av_ratio = get_analog_video_ratio(itf, log)
-        if av_ratio is None:
-            err_msg = 'Error in getting analog-video ratio!'
-            raise RuntimeError(err_msg)            
-    except RuntimeError as err:
-        if not (log and logger.isEnabledFor(logging.ERROR)):
-            print(traceback.format_exc())
-        if log: logger.error(err)
-        return None  
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
     start_fr = np.float32(first_fr)
     end_fr = np.float32(last_fr)+np.float32(av_ratio-1)/np.float32(av_ratio)
     n_frs = last_fr-first_fr+1
@@ -650,7 +574,7 @@ def get_analog_frames(itf, log=False):
     frs = np.linspace(start=start_fr, stop=end_fr, num=analog_steps, dtype=np.float32)
     return frs
 
-def get_video_times(itf, from_zero=True):
+def get_video_times(itf, from_zero=True, log=False):
     """
     Return a float-type numpy array that contains the times corresponding to the video frame numbers.
 
@@ -660,6 +584,8 @@ def get_video_times(itf, from_zero=True):
         COM object of the C3Dserver.
     from_zero : bool, optional
         Whether the return time array should start from zero or not. The default is True.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -667,17 +593,21 @@ def get_video_times(itf, from_zero=True):
         A float-type numpy array of the times corresponding to the video frame numbers.
 
     """
-    start_fr = get_first_frame(itf)
-    end_fr = get_last_frame(itf)
-    vid_fps = get_video_fps(itf)
-    offset_fr = start_fr if from_zero else 0
-    start_t = np.float32(start_fr-offset_fr)/vid_fps
-    end_t = np.float32(end_fr-offset_fr)/vid_fps
-    vid_steps = get_num_frames(itf)
-    t = np.linspace(start=start_t, stop=end_t, num=vid_steps, dtype=np.float32)
+    try:
+        first_fr = get_first_frame(itf)
+        last_fr = get_last_frame(itf)     
+        vid_fps = get_video_fps(itf)
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise        
+    offset_fr = first_fr if from_zero else 0
+    start_t = np.float32(first_fr-offset_fr)/vid_fps
+    end_t = np.float32(last_fr-offset_fr)/vid_fps
+    n_frs = last_fr-first_fr+1
+    t = np.linspace(start=start_t, stop=end_t, num=n_frs, dtype=np.float32)
     return t
 
-def get_analog_times(itf, from_zero=True):
+def get_analog_times(itf, from_zero=True, log=False):
     """
     Return a float-type array that contains the times corresponding to the analog frame numbers.
 
@@ -685,62 +615,71 @@ def get_analog_times(itf, from_zero=True):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
-
+    from_zero : bool, optional
+        Whether the return time array should start from zero or not. The default is True.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+        
     Returns
     -------
     t : numpy array
         A float-type numpy array of the times corresponding to the analog frame numbers.
 
     """
-    start_fr = get_first_frame(itf)
-    end_fr = get_last_frame(itf)
-    vid_fps = get_video_fps(itf)
-    analog_fps = get_analog_fps(itf)
-    av_ratio = get_analog_video_ratio(itf)
-    offset_fr = start_fr if from_zero else 0
-    start_t = np.float32(start_fr-offset_fr)/vid_fps
-    end_t = np.float32(end_fr-offset_fr)/vid_fps+np.float32(av_ratio-1)/analog_fps
-    analog_steps = get_num_frames(itf)*av_ratio
+    try:
+        first_fr = get_first_frame(itf)
+        last_fr = get_last_frame(itf)
+        vid_fps = get_video_fps(itf)
+        analog_fps = get_analog_fps(itf)
+        av_ratio = get_analog_video_ratio(itf)
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
+    offset_fr = first_fr if from_zero else 0
+    start_t = np.float32(first_fr-offset_fr)/vid_fps
+    end_t = np.float32(last_fr-offset_fr)/vid_fps+np.float32(av_ratio-1)/analog_fps
+    vid_steps = last_fr-first_fr+1
+    analog_steps = vid_steps*av_ratio
     t = np.linspace(start=start_t, stop=end_t, num=analog_steps, dtype=np.float32)
     return t
 
-def get_video_times_subset(itf, sel_masks):
-    """
-    Return a subset of the video frame time array.
+# def get_video_times_subset(itf, sel_masks):
+#     """
+#     Return a subset of the video frame time array.
 
-    Parameters
-    ----------
-    itf : win32com.client.CDispatch
-        COM object of the C3Dserver.
-    sel_masks : list or numpy array
-        list or numpy array of boolean for boolean array indexing.
+#     Parameters
+#     ----------
+#     itf : win32com.client.CDispatch
+#         COM object of the C3Dserver.
+#     sel_masks : list or numpy array
+#         list or numpy array of boolean for boolean array indexing.
 
-    Returns
-    -------
-    numpy array
-        A subset of the video frame time array.
+#     Returns
+#     -------
+#     numpy array
+#         A subset of the video frame time array.
 
-    """
-    return get_video_times(itf)[sel_masks]
+#     """
+#     return get_video_times(itf)[sel_masks]
 
-def get_analog_times_subset(itf, sel_masks):
-    """
-    Return a subset of the analog frame time array.
+# def get_analog_times_subset(itf, sel_masks):
+#     """
+#     Return a subset of the analog frame time array.
 
-    Parameters
-    ----------
-    itf : win32com.client.CDispatch
-        COM object of the C3Dserver.
-    sel_masks : list or numpy array
-        list or numpy array of boolean for boolean array indexing.
+#     Parameters
+#     ----------
+#     itf : win32com.client.CDispatch
+#         COM object of the C3Dserver.
+#     sel_masks : list or numpy array
+#         list or numpy array of boolean for boolean array indexing.
 
-    Returns
-    -------
-    numpy array
-        A subset of the analog frame time array.
+#     Returns
+#     -------
+#     numpy array
+#         A subset of the analog frame time array.
 
-    """
-    return get_analog_times(itf)[sel_masks]
+#     """
+#     return get_analog_times(itf)[sel_masks]
 
 def get_marker_names(itf, log=False):
     """
@@ -761,27 +700,31 @@ def get_marker_names(itf, log=False):
         None if there is no item in the POINT:LABELS parameter.
         
     """
-    mkr_names = []
-    idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-    if idx_pt_labels == -1:
-        if log: logger.debug('No POINT:LABELS parameter!')
-        return None
-    n_pt_labels = itf.GetParameterLength(idx_pt_labels)
-    if n_pt_labels < 1:
-        if log: logger.debug('No item under POINT:LABELS parameter!')
-        return None
-    idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-    if idx_pt_used == -1:
-        if log: logger.debug('No POINT:USED parameter!')
-        return None
-    n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
-    if n_pt_used < 1:
-        if log: logger.debug('POINT:USED value seems to be zero!')
-        return None
-    for i in range(n_pt_labels):
-        if i < n_pt_used:
-            mkr_names.append(itf.GetParameterValue(idx_pt_labels, i))
-    return mkr_names
+    try:
+        mkr_names = []
+        idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        if idx_pt_labels == -1:
+            if log: logger.debug('No POINT:LABELS parameter')
+            return None
+        n_pt_labels = itf.GetParameterLength(idx_pt_labels)
+        if n_pt_labels < 1:
+            if log: logger.debug('No item under POINT:LABELS parameter')
+            return None
+        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        if idx_pt_used == -1:
+            if log: logger.debug('No POINT:USED parameter')
+            return None
+        n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
+        if n_pt_used < 1:
+            if log: logger.debug('POINT:USED value seems to be zero')
+            return None
+        for i in range(n_pt_labels):
+            if i < n_pt_used:
+                mkr_names.append(itf.GetParameterValue(idx_pt_labels, i))
+        return mkr_names
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_marker_index(itf, mkr_name, log=False):
     """
