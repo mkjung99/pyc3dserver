@@ -74,11 +74,13 @@ You can develop your own functions using the COM object of C3Dserver in Python.
 - [C3D.ORG](https://www.c3d.org/)
 - [C3Dserver.com](https://www.c3dserver.com/)
 - [Motion Lab Systems, Inc.](https://www.motion-labs.com/)
-- [PyWin32](https://github.com/mhammond/pywin32)
 
 ## Python IDE recommendation
 - [Spyder](https://www.spyder-ide.org/) for MATLAB friendly users
 - [Visual Studio Code](https://code.visualstudio.com/)
+
+## Acknowledgment
+This work was funded by the European Union’s Horizon 2020 research and innovation programme (Project EXTEND - Bidirectional Hyper-Connected Neural System) under grant agreement No 779982.
 
 ## How to cite this work
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3908713.svg)](https://doi.org/10.5281/zenodo.3908713)
