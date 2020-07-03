@@ -167,29 +167,29 @@ def open_c3d(itf, f_path, strict_param_check=False, log=False):
         True or False.
 
     """
-    if log: logger.debug(f'Opening the file: "{f_path}"')
+    
     try:
+        if log: logger.debug(f'Opening the file: "{f_path}"')
         if not os.path.exists(f_path):
             err_msg = 'File path does not exist'
             raise FileNotFoundError(err_msg)
-    except FileNotFoundError as err:
-        if log: logger.error(err)
-        raise
-    try:
         ret = itf.Open(f_path, 3)
         if strict_param_check:
             itf.SetStrictParameterChecking(1)
         else:
-            itf.SetStrictParameterChecking(0)        
+            itf.SetStrictParameterChecking(0)
+        if ret == 0:
+            if log: logger.info(f'File is opened successfully')
+            return True
+        else:
+            if log: logger.info(f'File can not be opened')
+            return False
+    except FileNotFoundError as err:
+        if log: logger.error(err)
+        raise
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
-    if ret == 0:
-        if log: logger.info(f'File is opened successfully')
-        return True
-    else:
-        if log: logger.info(f'File can not be opened')
-        return False
 
 def save_c3d(itf, f_path='', f_type=-1, compress_param_blocks=False, log=False):
     """
