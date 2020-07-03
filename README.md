@@ -83,7 +83,7 @@ You can develop your own functions using the COM object of C3Dserver in Python.
 This work was funded by the European Union’s Horizon 2020 research and innovation programme (Project EXTEND - Bidirectional Hyper-Connected Neural System) under grant agreement No 779982.
 
 ## How to cite this work
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3908713.svg)](https://doi.org/10.5281/zenodo.3908713)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3903913.svg)](https://doi.org/10.5281/zenodo.3903913)
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
