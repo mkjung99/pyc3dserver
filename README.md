@@ -79,8 +79,8 @@ You can develop your own functions using the COM object of C3Dserver in Python.
 - [Spyder](https://www.spyder-ide.org/) for MATLAB friendly users
 - [Visual Studio Code](https://code.visualstudio.com/)
 
-## Acknowledgment
-This work was funded by the European Union’s Horizon 2020 research and innovation programme (Project EXTEND - Bidirectional Hyper-Connected Neural System) under grant agreement No 779982.
+## Acknowledgement
+This work was funded by the European Union's Horizon 2020 research and innovation programme (Project EXTEND - Bidirectional Hyper-Connected Neural System) under grant agreement No 779982.
 
 ## How to cite this work
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3903913.svg)](https://doi.org/10.5281/zenodo.3903913)
