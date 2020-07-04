@@ -748,32 +748,36 @@ def get_marker_index(itf, mkr_name, log=False):
         -1 if there is no corresponding marker with 'mkr_name' in the POINT:LABELS parameter.
 
     """
-    idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-    if idx_pt_labels == -1:
-        if log: logger.debug('No POINT:LABELS parameter!')
-        return None
-    n_pt_labels = itf.GetParameterLength(idx_pt_labels)
-    if n_pt_labels < 1:
-        if log: logger.debug('No item under POINT:LABELS parameter!')
-        return None
-    idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-    if idx_pt_used == -1:
-        if log: logger.debug('No POINT:USED parameter!')
-        return None
-    n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
-    if n_pt_used < 1:
-        if log: logger.debug('POINT:USED value seems to be zero!')
-        return None
-    mkr_idx = -1
-    for i in range(n_pt_labels):
-        if i < n_pt_used:
-            tgt_name = itf.GetParameterValue(idx_pt_labels, i)
-            if tgt_name == mkr_name:
-                mkr_idx = i
-                break  
-    if mkr_idx == -1:
-        if log: logger.debug(f'No "{mkr_name}" marker exists!')
-    return mkr_idx
+    try:
+        idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        if idx_pt_labels == -1:
+            if log: logger.debug('No POINT:LABELS parameter!')
+            return None
+        n_pt_labels = itf.GetParameterLength(idx_pt_labels)
+        if n_pt_labels < 1:
+            if log: logger.debug('No item under POINT:LABELS parameter!')
+            return None
+        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        if idx_pt_used == -1:
+            if log: logger.debug('No POINT:USED parameter!')
+            return None
+        n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
+        if n_pt_used < 1:
+            if log: logger.debug('POINT:USED value seems to be zero!')
+            return None
+        mkr_idx = -1
+        for i in range(n_pt_labels):
+            if i < n_pt_used:
+                tgt_name = itf.GetParameterValue(idx_pt_labels, i)
+                if tgt_name == mkr_name:
+                    mkr_idx = i
+                    break  
+        if mkr_idx == -1:
+            if log: logger.debug(f'No "{mkr_name}" marker exists!')
+        return mkr_idx
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_marker_unit(itf, log=False):
     """
@@ -794,16 +798,20 @@ def get_marker_unit(itf, log=False):
         None if there is no item in the POINT:UNITS parameter.
 
     """
-    idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
-    if idx_pt_units == -1: 
-        if log: logger.debug('No POINT:UNITS parameter!')
-        return None
-    n_items = itf.GetParameterLength(idx_pt_units)
-    if n_items < 1: 
-        if log: logger.debug('No item under POINT:UNITS parameter!')
-        return None
-    unit = itf.GetParameterValue(idx_pt_units, n_items-1)
-    return unit
+    try:
+        idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
+        if idx_pt_units == -1: 
+            if log: logger.debug('No POINT:UNITS parameter!')
+            return None
+        n_items = itf.GetParameterLength(idx_pt_units)
+        if n_items < 1: 
+            if log: logger.debug('No item under POINT:UNITS parameter!')
+            return None
+        unit = itf.GetParameterValue(idx_pt_units, n_items-1)
+        return unit
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_marker_scale(itf, log=False):
     """
@@ -824,16 +832,20 @@ def get_marker_scale(itf, log=False):
         None if there is no item in the POINT:SCALE parameter.
     
     """
-    idx_pt_scale = itf.GetParameterIndex('POINT', 'SCALE')
-    if idx_pt_scale == -1:
-        if log: logger.debug('No POINT:SCALE parameter!')
-        return None
-    n_items = itf.GetParameterLength(idx_pt_scale)
-    if n_items < 1:
-        if log: logger.debug('No item under POINT:SCALE parameter!')
-        return None
-    scale = np.float32(itf.GetParameterValue(idx_pt_scale, n_items-1))
-    return scale
+    try:
+        idx_pt_scale = itf.GetParameterIndex('POINT', 'SCALE')
+        if idx_pt_scale == -1:
+            if log: logger.debug('No POINT:SCALE parameter!')
+            return None
+        n_items = itf.GetParameterLength(idx_pt_scale)
+        if n_items < 1:
+            if log: logger.debug('No item under POINT:SCALE parameter!')
+            return None
+        scale = np.float32(itf.GetParameterValue(idx_pt_scale, n_items-1))
+        return scale
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_frame=None, log=False):
     """
@@ -863,19 +875,23 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
         None if there is no corresponding marker name in the C3D file.
         
     """
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1 or mkr_idx is None: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-    if not fr_check: return None
-    n_frs = end_fr-start_fr+1
-    mkr_data = np.full((n_frs, 4), np.nan, dtype=np.float32)
-    for i in range(3):
-        mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '1'), dtype=np.float32)
-    mkr_data[:,3] = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
-    if blocked_nan:
-        mkr_null_masks = np.where(np.isclose(mkr_data[:,3], -1), True, False)
-        mkr_data[mkr_null_masks,0:3] = np.nan 
-    return mkr_data
+    try:
+        mkr_idx = get_marker_index(itf, mkr_name, log)
+        if mkr_idx == -1 or mkr_idx is None: return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
+        if not fr_check: return None
+        n_frs = end_fr-start_fr+1
+        mkr_data = np.full((n_frs, 4), np.nan, dtype=np.float32)
+        for i in range(3):
+            mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '1'), dtype=np.float32)
+        mkr_data[:,3] = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+        if blocked_nan:
+            mkr_null_masks = np.where(np.isclose(mkr_data[:,3], -1), True, False)
+            mkr_data[mkr_null_masks,0:3] = np.nan 
+        return mkr_data
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=None, end_frame=None, log=False):
     """
@@ -910,26 +926,30 @@ def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=No
     This is a wrapper function of GetPointDataEx() in the C3DServer SDK with 'byScaled' parameter as 1.
     
     """
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1 or mkr_idx is None: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-    if not fr_check: return None
-    n_frs = end_fr-start_fr+1
-    mkr_scale = get_marker_scale(itf)
-    is_c3d_float = mkr_scale < 0
-    is_c3d_float2 = [False, True][itf.GetDataType()-1]
-    if is_c3d_float != is_c3d_float2:
-        if log: logger.debug(f'C3D data type is determined by POINT:SCALE parameter.')
-    mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
-    mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
-    b_scaled = ['0', '1'][scaled]
-    for i in range(3):
-        mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, b_scaled), dtype=mkr_dtype)
-    if blocked_nan:
-        mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
-        mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
-        mkr_data[mkr_null_masks,:] = np.nan  
-    return mkr_data
+    try:
+        mkr_idx = get_marker_index(itf, mkr_name, log)
+        if mkr_idx == -1 or mkr_idx is None: return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
+        if not fr_check: return None
+        n_frs = end_fr-start_fr+1
+        mkr_scale = get_marker_scale(itf)
+        is_c3d_float = mkr_scale < 0
+        is_c3d_float2 = [False, True][itf.GetDataType()-1]
+        if is_c3d_float != is_c3d_float2:
+            if log: logger.debug(f'C3D data type is determined by POINT:SCALE parameter.')
+        mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
+        mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
+        b_scaled = ['0', '1'][scaled]
+        for i in range(3):
+            mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, b_scaled), dtype=mkr_dtype)
+        if blocked_nan:
+            mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+            mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
+            mkr_data[mkr_null_masks,:] = np.nan  
+        return mkr_data
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=None, end_frame=None, log=False):
     """
@@ -968,29 +988,33 @@ def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=N
     This function returns the manual multiplication between un-scaled values from GetPointDataEx() and POINT:SCALE parameter.
     Ideally, get_marker_pos2() should return as same results as get_marker_pos() function.
     """
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1 or mkr_idx is None: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-    if not fr_check: return None
-    n_frs = end_fr-start_fr+1
-    mkr_scale = get_marker_scale(itf)
-    is_c3d_float = mkr_scale < 0
-    is_c3d_float2 = [False, True][itf.GetDataType()-1]
-    if is_c3d_float != is_c3d_float2:
-        if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter.')
-    mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
-    mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
-    scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
-    for i in range(3):
-        if scaled:
-            mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)*scale_size
-        else:
-            mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)
-    if blocked_nan:    
-        mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
-        mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
-        mkr_data[mkr_null_masks,:] = np.nan            
-    return mkr_data
+    try:
+        mkr_idx = get_marker_index(itf, mkr_name, log)
+        if mkr_idx == -1 or mkr_idx is None: return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
+        if not fr_check: return None
+        n_frs = end_fr-start_fr+1
+        mkr_scale = get_marker_scale(itf)
+        is_c3d_float = mkr_scale < 0
+        is_c3d_float2 = [False, True][itf.GetDataType()-1]
+        if is_c3d_float != is_c3d_float2:
+            if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter.')
+        mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
+        mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
+        scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
+        for i in range(3):
+            if scaled:
+                mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)*scale_size
+            else:
+                mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)
+        if blocked_nan:    
+            mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+            mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
+            mkr_data[mkr_null_masks,:] = np.nan            
+        return mkr_data
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_marker_resid(itf, mkr_name, start_frame=None, end_frame=None, log=False):
     """
@@ -1015,12 +1039,16 @@ def get_marker_resid(itf, mkr_name, start_frame=None, end_frame=None, log=False)
         1D numpy array (n,), where n is the number of frames in the output.
 
     """
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1 or mkr_idx is None: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-    if not fr_check: return None
-    mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
-    return mkr_resid
+    try:
+        mkr_idx = get_marker_index(itf, mkr_name, log)
+        if mkr_idx == -1 or mkr_idx is None: return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
+        if not fr_check: return None
+        mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+        return mkr_resid
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
 
 def get_analog_names(itf, log=False):
     """
@@ -1420,6 +1448,8 @@ def get_dict_groups(itf, tgt_grp_names=None):
         par_len = itf.GetParameterLength(i)
         par_type = itf.GetParameterType(i)
         data_type = dict_dtype.get(par_type, None)
+        par_num_dim = itf.GetParameterNumberDim(i)
+        par_dim = [itf.GetParameterDimension(i, j) for j in range(par_num_dim)]
         par_data = []
         if grp_name=='ANALOG' and par_name=='OFFSET':
             sig_format = get_analog_format(itf)
@@ -1430,7 +1460,17 @@ def get_dict_groups(itf, tgt_grp_names=None):
         else:
             for j in range(par_len):
                 par_data.append(itf.GetParameterValue(i, j))
-        dict_grps[grp_name][par_name] = data_type(par_data[0]) if len(par_data)==1 else np.asarray(par_data, dtype=data_type)
+        if par_type == -1:
+            if len(par_data)==1:
+                dict_grps[grp_name][par_name] = data_type(par_data[0])
+            else:
+                dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
+        else:
+            if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
+                dict_grps[grp_name][par_name] = data_type(par_data[0])
+            else:
+                dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+        # dict_grps[grp_name][par_name] = data_type(par_data[0]) if len(par_data)==1 else np.asarray(par_data, dtype=data_type)
     return dict_grps
 
 def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False, frame=False, time=False, tgt_mkr_names=None, log=False):
