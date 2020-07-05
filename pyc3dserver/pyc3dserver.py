@@ -1461,17 +1461,96 @@ def get_dict_groups(itf, tgt_grp_names=None):
             for j in range(par_len):
                 par_data.append(itf.GetParameterValue(i, j))
         if par_type == -1:
-            if len(par_data)==1:
+            if len(par_data) == 1:
                 dict_grps[grp_name][par_name] = data_type(par_data[0])
             else:
                 dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
         else:
-            if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
+            # if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
+            if par_num_dim == 0:
                 dict_grps[grp_name][par_name] = data_type(par_data[0])
             else:
                 dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
-        # dict_grps[grp_name][par_name] = data_type(par_data[0]) if len(par_data)==1 else np.asarray(par_data, dtype=data_type)
     return dict_grps
+
+def get_group_params(itf, grp_name, par_names, log=False):
+    """
+    Return desired parameter values under a specific group.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    grp_name : str
+        Target group name.
+    par_names : list
+        Target parameter names.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    dict_info : dict
+        Dictionary of the desired paramters under a specific group.
+
+    """
+    try:
+        dict_dtype = {-1:str, 1:np.int8, 2:np.int32, 4:np.float32}
+        dict_info = {}
+        for name in par_names:
+            par_idx = itf.GetParameterIndex(grp_name, name)
+            if par_idx == -1:
+                if log: logger.warning(f'There is no "{name}" parameter under "{grp_name}" group')
+                continue
+            par_name = itf.GetParameterName(par_idx)
+            par_len = itf.GetParameterLength(par_idx)
+            par_type = itf.GetParameterType(par_idx)
+            data_type = dict_dtype.get(par_type, None)
+            par_num_dim = itf.GetParameterNumberDim(par_idx)
+            par_dim = [itf.GetParameterDimension(par_idx, j) for j in range(par_num_dim)]
+            par_data = []
+            for j in range(par_len):
+                par_data.append(itf.GetParameterValue(par_idx, j))
+            if par_type == -1:
+                if len(par_data) == 1:
+                    dict_info[par_name] = data_type(par_data[0])
+                else:
+                    dict_info[par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
+            else:
+                # if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
+                if par_num_dim == 0:
+                    dict_info[par_name] = data_type(par_data[0])
+                else:
+                    dict_info[par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+        return dict_info
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+
+def get_fp_params(itf, log=False):
+    """
+    Return desired parameter values under the 'FORCE_PLATFORM' group.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    dict
+        Dictionary of the desired paramters under the 'FORCE_PLATFORM' group.
+
+    """
+    try:
+        grp_name = 'FORCE_PLATFORM'
+        par_names = ['TYPE', 'USED', 'ORIGIN', 'CORNERS', 'CHANNEL']
+        return get_group_params(itf, grp_name, par_names, log)
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
 
 def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False, frame=False, time=False, tgt_mkr_names=None, log=False):
     """
