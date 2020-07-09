@@ -115,36 +115,36 @@ def c3dserver(msg=True, log=False):
     try:
         itf = win32.Dispatch('C3DServer.C3D')
         # itf = win32.dynamic.Dispatch('C3DServer.C3D')
+        reg_mode = itf.GetRegistrationMode()
+        ver = itf.GetVersion()
+        user_name = itf.GetRegUserName()
+        user_org = itf.GetRegUserOrganization()
+        if msg:
+            print('=============================================')
+            if reg_mode == 0:
+                print('Unregistered C3Dserver')
+            elif reg_mode == 1:
+                print('Evaluation C3Dserver')
+            elif reg_mode == 2:
+                print('Registered C3Dserver')
+            print('Version: ', ver)
+            print('User: ', user_name)
+            print('Organization: ', user_org)
+            print('=============================================')
+        if log:
+            if reg_mode == 0:
+                logger.info('Unregistered C3Dserver')
+            elif reg_mode == 1:
+                logger.info('Evaluation C3Dserver')
+            elif reg_mode == 2:
+                logger.info('Registered C3Dserver')        
+            logger.info(f'Version: {ver}')
+            logger.info(f'User: {user_name}')
+            logger.info(f'Organization: {user_org}')
+        return itf
     except pythoncom.com_error as err:
         if log: logger.error(err.strerror)
-        raise     
-    reg_mode = itf.GetRegistrationMode()
-    ver = itf.GetVersion()
-    user_name = itf.GetRegUserName()
-    user_org = itf.GetRegUserOrganization()
-    if msg:
-        print('=============================================')
-        if reg_mode == 0:
-            print('Unregistered C3Dserver')
-        elif reg_mode == 1:
-            print('Evaluation C3Dserver')
-        elif reg_mode == 2:
-            print('Registered C3Dserver')
-        print('Version: ', ver)
-        print('User: ', user_name)
-        print('Organization: ', user_org)
-        print('=============================================')
-    if log:
-        if reg_mode == 0:
-            logger.info('Unregistered C3Dserver')
-        elif reg_mode == 1:
-            logger.info('Evaluation C3Dserver')
-        elif reg_mode == 2:
-            logger.info('Registered C3Dserver')        
-        logger.info(f'Version: {ver}')
-        logger.info(f'User: {user_name}')
-        logger.info(f'Organization: {user_org}')
-    return itf
+        raise
 
 def open_c3d(itf, f_path, strict_param_check=False, log=False):
     """
@@ -217,22 +217,22 @@ def save_c3d(itf, f_path='', f_type=-1, compress_param_blocks=False, log=False):
         True or False.
 
     """
-    if log: logger.debug(f'Saving the file: "{f_path}"')
     try:
+        if log: logger.debug(f'Saving the file: "{f_path}"')
         if compress_param_blocks:
             itf.CompressParameterBlocks(1)
         else:
             itf.CompressParameterBlocks(0)
         ret = itf.SaveFile(f_path, f_type)
+        if ret == 1:
+            if log: logger.info(f'File is saved successfully')
+            return True
+        else:
+            if log: logger.info(f'File can not be saved')
+            return False        
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
-    if ret == 1:
-        if log: logger.info(f'File is saved successfully')
-        return True
-    else:
-        if log: logger.info(f'File can not be saved')
-        return False
 
 def close_c3d(itf, log=False):
     """
@@ -274,13 +274,13 @@ def get_file_type(itf, log=False):
         File type.
 
     """
-    dict_f_type = {1:'INTEL', 2:'DEC', 3:'SGI'}
     try:
+        dict_f_type = {1:'INTEL', 2:'DEC', 3:'SGI'}
         f_type = itf.GetFileType()
+        return dict_f_type.get(f_type, None)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise      
-    return dict_f_type.get(f_type, None)
+        raise
 
 def get_data_type(itf, log=False):
     """
@@ -299,13 +299,13 @@ def get_data_type(itf, log=False):
         Data type.
 
     """
-    dict_data_type = {1:'INTEGER', 2:'REAL'}
     try:
+        dict_data_type = {1:'INTEGER', 2:'REAL'}
         data_type = itf.GetDataType()
+        return dict_data_type.get(data_type, None)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
-    return dict_data_type.get(data_type, None)
+        raise
 
 def get_first_frame(itf, log=False):
     """
@@ -330,10 +330,10 @@ def get_first_frame(itf, log=False):
     """
     try:
         first_fr = itf.GetVideoFrame(0)
+        return np.int32(first_fr)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
-    return np.int32(first_fr)
+        raise
 
 def get_last_frame(itf, log=False):
     """
@@ -358,10 +358,10 @@ def get_last_frame(itf, log=False):
     """
     try:
         last_fr = itf.GetVideoFrame(1)
+        return np.int32(last_fr)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
-    return np.int32(last_fr)
 
 def get_num_frames(itf, log=False):
     """
@@ -383,11 +383,11 @@ def get_num_frames(itf, log=False):
     try:
         first_fr = get_first_frame(itf, log)
         last_fr = get_last_frame(itf, log)
+        n_frs = last_fr-first_fr+1
+        return np.int32(n_frs)        
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
-    n_frs = last_fr-first_fr+1
-    return np.int32(n_frs)
 
 def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
     """
@@ -433,15 +433,14 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
             end_fr = end_frame
         if not (start_fr < end_fr):
             err_msg = f'"end_frame" should be greater than "start_frame"'
-            raise ValueError(err_msg)        
+            raise ValueError(err_msg)
+        return True, start_fr, end_fr
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
     except ValueError as err:
         if log: logger.error(err)
         raise
-    else:
-        return True, start_fr, end_fr
 
 def get_video_fps(itf, log=False):
     """
@@ -462,10 +461,10 @@ def get_video_fps(itf, log=False):
     """
     try:
         vid_fps = itf.GetVideoFrameRate()
+        return np.float32(vid_fps)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
-    return np.float32(vid_fps)
+        raise
 
 def get_analog_video_ratio(itf, log=False):
     """
@@ -486,10 +485,10 @@ def get_analog_video_ratio(itf, log=False):
     """
     try:
         av_ratio = itf.GetAnalogVideoRatio()
+        return np.int32(av_ratio)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
-    return np.int32(av_ratio)
+        raise
 
 def get_analog_fps(itf, log=False):
     """
@@ -511,10 +510,10 @@ def get_analog_fps(itf, log=False):
     try:
         vid_fps = get_video_fps(itf, log)
         av_ratio = get_analog_video_ratio(itf, log)
+        return np.float32(vid_fps*np.float32(av_ratio))
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
-    return np.float32(vid_fps*np.float32(av_ratio))
 
 def get_video_frames(itf, log=False):
     """
@@ -536,13 +535,13 @@ def get_video_frames(itf, log=False):
     try:
         first_fr = get_first_frame(itf, log)
         last_fr = get_last_frame(itf, log)
+        n_frs = last_fr-first_fr+1
+        frs = np.linspace(start=first_fr, stop=last_fr, num=n_frs, dtype=np.int32)
+        return frs       
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise 
-    n_frs = last_fr-first_fr+1
-    frs = np.linspace(start=first_fr, stop=last_fr, num=n_frs, dtype=np.int32)
-    return frs
-
+        raise
+        
 def get_analog_frames(itf, log=False):
     """
     Return a float-type numpy array that contains the analog frame numbers.
@@ -564,15 +563,15 @@ def get_analog_frames(itf, log=False):
         first_fr = get_first_frame(itf, log)
         last_fr = get_last_frame(itf, log)  
         av_ratio = get_analog_video_ratio(itf, log)
+        start_fr = np.float32(first_fr)
+        end_fr = np.float32(last_fr)+np.float32(av_ratio-1)/np.float32(av_ratio)
+        n_frs = last_fr-first_fr+1
+        analog_steps = n_frs*av_ratio
+        frs = np.linspace(start=start_fr, stop=end_fr, num=analog_steps, dtype=np.float32)
+        return frs        
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
-    start_fr = np.float32(first_fr)
-    end_fr = np.float32(last_fr)+np.float32(av_ratio-1)/np.float32(av_ratio)
-    n_frs = last_fr-first_fr+1
-    analog_steps = n_frs*av_ratio
-    frs = np.linspace(start=start_fr, stop=end_fr, num=analog_steps, dtype=np.float32)
-    return frs
 
 def get_video_times(itf, from_zero=True, log=False):
     """
@@ -595,17 +594,17 @@ def get_video_times(itf, from_zero=True, log=False):
     """
     try:
         first_fr = get_first_frame(itf)
-        last_fr = get_last_frame(itf)     
+        last_fr = get_last_frame(itf)
         vid_fps = get_video_fps(itf)
+        offset_fr = first_fr if from_zero else 0
+        start_t = np.float32(first_fr-offset_fr)/vid_fps
+        end_t = np.float32(last_fr-offset_fr)/vid_fps
+        n_frs = last_fr-first_fr+1
+        t = np.linspace(start=start_t, stop=end_t, num=n_frs, dtype=np.float32)
+        return t        
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise        
-    offset_fr = first_fr if from_zero else 0
-    start_t = np.float32(first_fr-offset_fr)/vid_fps
-    end_t = np.float32(last_fr-offset_fr)/vid_fps
-    n_frs = last_fr-first_fr+1
-    t = np.linspace(start=start_t, stop=end_t, num=n_frs, dtype=np.float32)
-    return t
 
 def get_analog_times(itf, from_zero=True, log=False):
     """
@@ -632,16 +631,16 @@ def get_analog_times(itf, from_zero=True, log=False):
         vid_fps = get_video_fps(itf)
         analog_fps = get_analog_fps(itf)
         av_ratio = get_analog_video_ratio(itf)
+        offset_fr = first_fr if from_zero else 0
+        start_t = np.float32(first_fr-offset_fr)/vid_fps
+        end_t = np.float32(last_fr-offset_fr)/vid_fps+np.float32(av_ratio-1)/analog_fps
+        vid_steps = last_fr-first_fr+1
+        analog_steps = vid_steps*av_ratio
+        t = np.linspace(start=start_t, stop=end_t, num=analog_steps, dtype=np.float32)
+        return t        
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise    
-    offset_fr = first_fr if from_zero else 0
-    start_t = np.float32(first_fr-offset_fr)/vid_fps
-    end_t = np.float32(last_fr-offset_fr)/vid_fps+np.float32(av_ratio-1)/analog_fps
-    vid_steps = last_fr-first_fr+1
-    analog_steps = vid_steps*av_ratio
-    t = np.linspace(start=start_t, stop=end_t, num=analog_steps, dtype=np.float32)
-    return t
 
 # def get_video_times_subset(itf, sel_masks):
 #     """
@@ -751,19 +750,19 @@ def get_marker_index(itf, mkr_name, log=False):
     try:
         idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
         if idx_pt_labels == -1:
-            if log: logger.debug('No POINT:LABELS parameter!')
+            if log: logger.debug('No POINT:LABELS parameter')
             return None
         n_pt_labels = itf.GetParameterLength(idx_pt_labels)
         if n_pt_labels < 1:
-            if log: logger.debug('No item under POINT:LABELS parameter!')
+            if log: logger.debug('No item under POINT:LABELS parameter')
             return None
         idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
         if idx_pt_used == -1:
-            if log: logger.debug('No POINT:USED parameter!')
+            if log: logger.debug('No POINT:USED parameter')
             return None
         n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
         if n_pt_used < 1:
-            if log: logger.debug('POINT:USED value seems to be zero!')
+            if log: logger.debug('POINT:USED value seems to be zero')
             return None
         mkr_idx = -1
         for i in range(n_pt_labels):
@@ -773,7 +772,7 @@ def get_marker_index(itf, mkr_name, log=False):
                     mkr_idx = i
                     break  
         if mkr_idx == -1:
-            if log: logger.debug(f'No "{mkr_name}" marker exists!')
+            if log: logger.debug(f'No "{mkr_name}" marker exists')
         return mkr_idx
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -801,11 +800,11 @@ def get_marker_unit(itf, log=False):
     try:
         idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
         if idx_pt_units == -1: 
-            if log: logger.debug('No POINT:UNITS parameter!')
+            if log: logger.debug('No POINT:UNITS parameter')
             return None
         n_items = itf.GetParameterLength(idx_pt_units)
         if n_items < 1: 
-            if log: logger.debug('No item under POINT:UNITS parameter!')
+            if log: logger.debug('No item under POINT:UNITS parameter')
             return None
         unit = itf.GetParameterValue(idx_pt_units, n_items-1)
         return unit
@@ -835,11 +834,11 @@ def get_marker_scale(itf, log=False):
     try:
         idx_pt_scale = itf.GetParameterIndex('POINT', 'SCALE')
         if idx_pt_scale == -1:
-            if log: logger.debug('No POINT:SCALE parameter!')
+            if log: logger.debug('No POINT:SCALE parameter')
             return None
         n_items = itf.GetParameterLength(idx_pt_scale)
         if n_items < 1:
-            if log: logger.debug('No item under POINT:SCALE parameter!')
+            if log: logger.debug('No item under POINT:SCALE parameter')
             return None
         scale = np.float32(itf.GetParameterValue(idx_pt_scale, n_items-1))
         return scale
@@ -936,7 +935,7 @@ def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=No
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
-            if log: logger.debug(f'C3D data type is determined by POINT:SCALE parameter.')
+            if log: logger.debug(f'C3D data type is determined by POINT:SCALE parameter')
         mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
         mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
         b_scaled = ['0', '1'][scaled]
@@ -998,7 +997,7 @@ def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=N
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
-            if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter.')
+            if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter')
         mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
         mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
         scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
@@ -1067,24 +1066,28 @@ def get_analog_names(itf, log=False):
         String list that contains the analog channel names.
 
     """
-    sig_names = []
-    idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    if idx_anl_labels == -1:
-        if log: logger.debug('No ANALOG:LABELS parameter!')
-        return None
-    n_anl_labels = itf.GetParameterLength(idx_anl_labels)
-    if n_anl_labels < 1:
-        if log: logger.debug('No item under ANALOG:LABELS parameter!')
-        return None
-    idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
-    if idx_anl_used == -1:
-        if log: logger.debug('No ANALOG:USED parameter!')
-        return None        
-    n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
-    for i in range(n_anl_labels):
-        if i < n_anl_used:
-            sig_names.append(itf.GetParameterValue(idx_anl_labels, i))
-    return sig_names
+    try:
+        sig_names = []
+        idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
+        if idx_anl_labels == -1:
+            if log: logger.debug('No ANALOG:LABELS parameter')
+            return None
+        n_anl_labels = itf.GetParameterLength(idx_anl_labels)
+        if n_anl_labels < 1:
+            if log: logger.debug('No item under ANALOG:LABELS parameter')
+            return None
+        idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
+        if idx_anl_used == -1:
+            if log: logger.debug('No ANALOG:USED parameter')
+            return None        
+        n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
+        for i in range(n_anl_labels):
+            if i < n_anl_used:
+                sig_names.append(itf.GetParameterValue(idx_anl_labels, i))
+        return sig_names
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_analog_index(itf, sig_name, log=False):
     """
@@ -1105,29 +1108,33 @@ def get_analog_index(itf, sig_name, log=False):
         Index of the analog channel.
 
     """
-    idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    if idx_anl_labels == -1:
-        if log: logger.debug('No ANALOG:LABELS parameter!')
-        return None
-    n_anl_labels = itf.GetParameterLength(idx_anl_labels)
-    if n_anl_labels < 1:
-        if log: logger.debug('No item under ANALOG:LABELS parameter!')
-        return None
-    idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
-    if idx_anl_used == -1:
-        if log: logger.debug('No ANALOG:USED parameter!')
-        return None
-    n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
-    sig_idx = -1    
-    for i in range(n_anl_labels):
-        if i < n_anl_used:
-            tgt_name = itf.GetParameterValue(idx_anl_labels, i)
-            if tgt_name == sig_name:
-                sig_idx = i
-                break        
-    if sig_idx == -1:
-        if log: logger.debug(f'No "{sig_name}" analog channel in the open file!')
-    return sig_idx
+    try:
+        idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
+        if idx_anl_labels == -1:
+            if log: logger.debug('No ANALOG:LABELS parameter')
+            return None
+        n_anl_labels = itf.GetParameterLength(idx_anl_labels)
+        if n_anl_labels < 1:
+            if log: logger.debug('No item under ANALOG:LABELS parameter')
+            return None
+        idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
+        if idx_anl_used == -1:
+            if log: logger.debug('No ANALOG:USED parameter')
+            return None
+        n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
+        sig_idx = -1    
+        for i in range(n_anl_labels):
+            if i < n_anl_used:
+                tgt_name = itf.GetParameterValue(idx_anl_labels, i)
+                if tgt_name == sig_name:
+                    sig_idx = i
+                    break        
+        if sig_idx == -1:
+            if log: logger.debug(f'No "{sig_name}" analog channel in the open file')
+        return sig_idx
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_analog_gen_scale(itf, log=False):
     """
@@ -1148,16 +1155,20 @@ def get_analog_gen_scale(itf, log=False):
         None if there is no item in the ANALOG:GEN_SCALE parameter.
         
     """
-    par_idx = itf.GetParameterIndex('ANALOG', 'GEN_SCALE')
-    if par_idx == -1:
-        if log: logger.debug('No ANALOG:GEN_SCALE parameter!')
-        return None
-    n_items = itf.GetParameterLength(par_idx)
-    if n_items < 1:
-        if log: logger.debug('No item under ANALOG:GEN_SCALE parameter!')
-        return None
-    gen_scale = np.float32(itf.GetParameterValue(par_idx, n_items-1))
-    return gen_scale
+    try:
+        par_idx = itf.GetParameterIndex('ANALOG', 'GEN_SCALE')
+        if par_idx == -1:
+            if log: logger.debug('No ANALOG:GEN_SCALE parameter')
+            return None
+        n_items = itf.GetParameterLength(par_idx)
+        if n_items < 1:
+            if log: logger.debug('No item under ANALOG:GEN_SCALE parameter')
+            return None
+        gen_scale = np.float32(itf.GetParameterValue(par_idx, n_items-1))
+        return gen_scale
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_analog_format(itf, log=False):
     """
@@ -1178,16 +1189,21 @@ def get_analog_format(itf, log=False):
         None if there is no item in the ANALOG:FORMAT parameter.
         
     """
-    par_idx = itf.GetParameterIndex('ANALOG', 'FORMAT')
-    if par_idx == -1:
-        if log: logger.debug('No ANALOG:FORMAT parameter!')
-        return None
-    n_items = itf.GetParameterLength(par_idx)
-    if n_items < 1:
-        if log: logger.debug('No item under ANALOG:FORMAT parameter!')
-        return None    
-    sig_format = itf.GetParameterValue(par_idx, n_items-1)
-    return sig_format
+    try:
+        par_idx = itf.GetParameterIndex('ANALOG', 'FORMAT')
+        if par_idx == -1:
+            if log: logger.debug('No ANALOG:FORMAT parameter')
+            return None
+        n_items = itf.GetParameterLength(par_idx)
+        if n_items != 1:
+            if log: logger.debug('No proper item under ANALOG:FORMAT parameter')
+            return None    
+        # sig_format = itf.GetParameterValue(par_idx, n_items-1)
+        sig_format = itf.GetParameterValue(par_idx, 0)
+        return sig_format
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_analog_unit(itf, sig_name, log=False):
     """
@@ -1208,14 +1224,18 @@ def get_analog_unit(itf, sig_name, log=False):
         Analog channel unit.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1 or sig_idx is None: return None
-    par_idx = itf.GetParameterIndex('ANALOG', 'UNITS')
-    if par_idx == -1:
-        if log: logger.debug('No ANALOG:UNITS parameter!')
-        return None
-    sig_unit = itf.GetParameterValue(par_idx, sig_idx)
-    return sig_unit
+    try:
+        sig_idx = get_analog_index(itf, sig_name, log)
+        if sig_idx == -1 or sig_idx is None: return None
+        par_idx = itf.GetParameterIndex('ANALOG', 'UNITS')
+        if par_idx == -1:
+            if log: logger.debug('No ANALOG:UNITS parameter')
+            return None
+        sig_unit = itf.GetParameterValue(par_idx, sig_idx)
+        return sig_unit
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
     
 def get_analog_scale(itf, sig_name, log=False):
     """
@@ -1236,14 +1256,18 @@ def get_analog_scale(itf, sig_name, log=False):
         Analog channel scale.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1 or sig_idx is None: return None
-    par_idx = itf.GetParameterIndex('ANALOG', 'SCALE')
-    if par_idx == -1:
-        if log: logger.debug('No ANALOG:SCALE parameter!')
-        return None
-    sig_scale = np.float32(itf.GetParameterValue(par_idx, sig_idx))
-    return sig_scale
+    try:
+        sig_idx = get_analog_index(itf, sig_name, log)
+        if sig_idx == -1 or sig_idx is None: return None
+        par_idx = itf.GetParameterIndex('ANALOG', 'SCALE')
+        if par_idx == -1:
+            if log: logger.debug('No ANALOG:SCALE parameter')
+            return None
+        sig_scale = np.float32(itf.GetParameterValue(par_idx, sig_idx))
+        return sig_scale
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
     
 def get_analog_offset(itf, sig_name, log=False):
     """
@@ -1264,17 +1288,21 @@ def get_analog_offset(itf, sig_name, log=False):
         Analog channel offset.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1 or sig_idx is None: return None
-    par_idx = itf.GetParameterIndex('ANALOG', 'OFFSET')
-    if par_idx == -1:
-        if log: logger.debug('No ANALOG:OFFSET parameter!')
-        return None
-    sig_format = get_analog_format(itf)
-    is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
-    par_dtype = [np.int16, np.uint16][is_sig_unsigned]
-    sig_offset = par_dtype(itf.GetParameterValue(par_idx, sig_idx))
-    return sig_offset
+    try:
+        sig_idx = get_analog_index(itf, sig_name, log)
+        if sig_idx == -1 or sig_idx is None: return None
+        par_idx = itf.GetParameterIndex('ANALOG', 'OFFSET')
+        if par_idx == -1:
+            if log: logger.debug('No ANALOG:OFFSET parameter')
+            return None
+        sig_format = get_analog_format(itf)
+        is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
+        par_dtype = [np.int16, np.uint16][is_sig_unsigned]
+        sig_offset = par_dtype(itf.GetParameterValue(par_idx, sig_idx))
+        return sig_offset
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
             
 def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, log=False):
     """
@@ -1299,20 +1327,24 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, lo
         Analog channel value.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1 or sig_idx is None: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-    if not fr_check: return None
-    sig_format = get_analog_format(itf)
-    is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')        
-    mkr_scale = get_marker_scale(itf)
-    is_c3d_float = mkr_scale < 0
-    is_c3d_float2 = [False, True][itf.GetDataType()-1]
-    if is_c3d_float != is_c3d_float2:
-        if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter.')
-    sig_dtype = [[np.int16, np.uint16][is_sig_unsigned], np.float32][is_c3d_float]
-    sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
-    return sig
+    try:
+        sig_idx = get_analog_index(itf, sig_name, log)
+        if sig_idx == -1 or sig_idx is None: return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
+        if not fr_check: return None
+        sig_format = get_analog_format(itf)
+        is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')        
+        mkr_scale = get_marker_scale(itf)
+        is_c3d_float = mkr_scale < 0
+        is_c3d_float2 = [False, True][itf.GetDataType()-1]
+        if is_c3d_float != is_c3d_float2:
+            if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter')
+        sig_dtype = [[np.int16, np.uint16][is_sig_unsigned], np.float32][is_c3d_float]
+        sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
+        return sig
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, log=False):
     """
@@ -1337,12 +1369,16 @@ def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, log=
         Analog channel value.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1 or sig_idx is None: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-    if not fr_check: return None
-    sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
-    return sig
+    try:
+        sig_idx = get_analog_index(itf, sig_name, log)
+        if sig_idx == -1 or sig_idx is None: return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
+        if not fr_check: return None
+        sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
+        return sig
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log=False):
     """
@@ -1367,17 +1403,21 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log
         Analog channel value.
 
     """
-    sig_idx = get_analog_index(itf, sig_name, log)
-    if sig_idx == -1 or sig_idx is None: return None
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-    if not fr_check: return None
-    gen_scale = get_analog_gen_scale(itf)
-    sig_scale = get_analog_scale(itf, sig_name)
-    sig_offset = np.float32(get_analog_offset(itf, sig_name))
-    sig = (np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
-    return sig
+    try:
+        sig_idx = get_analog_index(itf, sig_name, log)
+        if sig_idx == -1 or sig_idx is None: return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
+        if not fr_check: return None
+        gen_scale = get_analog_gen_scale(itf)
+        sig_scale = get_analog_scale(itf, sig_name)
+        sig_offset = np.float32(get_analog_offset(itf, sig_name))
+        sig = (np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
+        return sig
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
-def get_dict_header(itf):
+def get_dict_header(itf, log=False):
     """
     Return the summarization of the C3D header information.
 
@@ -1385,6 +1425,8 @@ def get_dict_header(itf):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
 
     Returns
     -------
@@ -1392,24 +1434,28 @@ def get_dict_header(itf):
         Dictionary of the C3D header information.
 
     """
-    dict_file_type = {1:'INTEL', 2:'DEC', 3:'SGI'}
-    dict_data_type = {1:'INTEGER', 2:'REAL'}
-    dict_header = {}
-    dict_header['FILE_TYPE'] = dict_file_type.get(itf.GetFileType(), None)
-    dict_header['DATA_TYPE'] = dict_data_type.get(itf.GetDataType(), None)
-    dict_header['NUM_3D_POINTS'] = np.int32(itf.GetNumber3DPoints())
-    dict_header['NUM_ANALOG_CHANNELS'] = np.int32(itf.GetAnalogChannels())
-    dict_header['FIRST_FRAME'] = np.int32(itf.GetVideoFrameHeader(0))
-    dict_header['LAST_FRAME'] = np.int32(itf.GetVideoFrameHeader(1))
-    dict_header['START_RECORD'] = np.int32(itf.GetStartingRecord())
-    dict_header['VIDEO_FRAME_RATE'] = np.float32(itf.GetVideoFrameRate())
-    dict_header['ANALOG_VIDEO_RATIO'] = np.int32(itf.GetAnalogVideoRatio())
-    dict_header['ANALOG_FRAME_RATE'] = np.float32(itf.GetVideoFrameRate()*itf.GetAnalogVideoRatio())
-    dict_header['MAX_INTERPOLATION_GAP'] = np.int32(itf.GetMaxInterpolationGap())
-    dict_header['3D_SCALE_FACTOR'] = np.float32(itf.GetHeaderScaleFactor())
-    return dict_header
+    try:
+        dict_file_type = {1:'INTEL', 2:'DEC', 3:'SGI'}
+        dict_data_type = {1:'INTEGER', 2:'REAL'}
+        dict_header = {}
+        dict_header['FILE_TYPE'] = dict_file_type.get(itf.GetFileType(), None)
+        dict_header['DATA_TYPE'] = dict_data_type.get(itf.GetDataType(), None)
+        dict_header['NUM_3D_POINTS'] = np.int32(itf.GetNumber3DPoints())
+        dict_header['NUM_ANALOG_CHANNELS'] = np.int32(itf.GetAnalogChannels())
+        dict_header['FIRST_FRAME'] = np.int32(itf.GetVideoFrameHeader(0))
+        dict_header['LAST_FRAME'] = np.int32(itf.GetVideoFrameHeader(1))
+        dict_header['START_RECORD'] = np.int32(itf.GetStartingRecord())
+        dict_header['VIDEO_FRAME_RATE'] = np.float32(itf.GetVideoFrameRate())
+        dict_header['ANALOG_VIDEO_RATIO'] = np.int32(itf.GetAnalogVideoRatio())
+        dict_header['ANALOG_FRAME_RATE'] = np.float32(itf.GetVideoFrameRate()*itf.GetAnalogVideoRatio())
+        dict_header['MAX_INTERPOLATION_GAP'] = np.int32(itf.GetMaxInterpolationGap())
+        dict_header['3D_SCALE_FACTOR'] = np.float32(itf.GetHeaderScaleFactor())
+        return dict_header
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
-def get_dict_groups(itf, tgt_grp_names=None):
+def get_dict_groups(itf, tgt_grp_names=None, log=False):
     """
     Return the dictionary of the groups.
 
@@ -1421,6 +1467,8 @@ def get_dict_groups(itf, tgt_grp_names=None):
         COM object of the C3Dserver.
     tgt_grp_names: str or tuple, optional
         Target group names to extract. The default is None.
+    log : bool, optional
+        Whether to write logs or not. The default is False.        
     
     Returns
     -------
@@ -1428,50 +1476,54 @@ def get_dict_groups(itf, tgt_grp_names=None):
         Dictionary of the C3D header information.
 
     """
-    dict_dtype = {-1:str, 1:np.int8, 2:np.int32, 4:np.float32}
-    dict_grps = {}
-    dict_grp_names = {}
-    n_grps = itf.GetNumberGroups()
-    for i in range(n_grps):
-        grp_name = itf.GetGroupName(i)
-        if (tgt_grp_names is not None) and (grp_name not in tgt_grp_names): continue
-        grp_number = itf.GetGroupNumber(i)
-        dict_grp_names.update({np.absolute(grp_number, dtype=np.int): grp_name})
-        dict_grps[grp_name] = {}
-    n_params = itf.GetNumberParameters()
-    for i in range(n_params):
-        par_num = itf.GetParameterNumber(i)
-        grp_name = dict_grp_names.get(par_num, None)
-        if grp_name is None: continue
-        if (tgt_grp_names is not None) and (grp_name not in tgt_grp_names): continue
-        par_name = itf.GetParameterName(i)
-        par_len = itf.GetParameterLength(i)
-        par_type = itf.GetParameterType(i)
-        data_type = dict_dtype.get(par_type, None)
-        par_num_dim = itf.GetParameterNumberDim(i)
-        par_dim = [itf.GetParameterDimension(i, j) for j in range(par_num_dim)]
-        par_data = []
-        if grp_name=='ANALOG' and par_name=='OFFSET':
-            sig_format = get_analog_format(itf)
-            is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
-            pre_dtype = [np.int16, np.uint16][is_sig_unsigned]
-            for j in range(par_len):
-                par_data.append(pre_dtype(itf.GetParameterValue(i, j)))
-        else:
-            for j in range(par_len):
-                par_data.append(itf.GetParameterValue(i, j))
-        if par_type == -1:
-            if len(par_data) == 1:
-                dict_grps[grp_name][par_name] = data_type(par_data[0])
+    try:
+        dict_dtype = {-1:str, 1:np.int8, 2:np.int32, 4:np.float32}
+        dict_grps = {}
+        dict_grp_names = {}
+        n_grps = itf.GetNumberGroups()
+        for i in range(n_grps):
+            grp_name = itf.GetGroupName(i)
+            if (tgt_grp_names is not None) and (grp_name not in tgt_grp_names): continue
+            grp_number = itf.GetGroupNumber(i)
+            dict_grp_names.update({np.absolute(grp_number, dtype=np.int): grp_name})
+            dict_grps[grp_name] = {}
+        n_params = itf.GetNumberParameters()
+        for i in range(n_params):
+            par_num = itf.GetParameterNumber(i)
+            grp_name = dict_grp_names.get(par_num, None)
+            if grp_name is None: continue
+            if (tgt_grp_names is not None) and (grp_name not in tgt_grp_names): continue
+            par_name = itf.GetParameterName(i)
+            par_len = itf.GetParameterLength(i)
+            par_type = itf.GetParameterType(i)
+            data_type = dict_dtype.get(par_type, None)
+            par_num_dim = itf.GetParameterNumberDim(i)
+            par_dim = [itf.GetParameterDimension(i, j) for j in range(par_num_dim)]
+            par_data = []
+            if grp_name=='ANALOG' and par_name=='OFFSET':
+                sig_format = get_analog_format(itf)
+                is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
+                pre_dtype = [np.int16, np.uint16][is_sig_unsigned]
+                for j in range(par_len):
+                    par_data.append(pre_dtype(itf.GetParameterValue(i, j)))
             else:
-                dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
-        else:
-            # if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
-            if par_num_dim == 0:
-                dict_grps[grp_name][par_name] = data_type(par_data[0])
+                for j in range(par_len):
+                    par_data.append(itf.GetParameterValue(i, j))
+            if par_type == -1:
+                if len(par_data) == 1:
+                    dict_grps[grp_name][par_name] = data_type(par_data[0])
+                else:
+                    dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
             else:
-                dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
-    return dict_grps
+                # if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
+                if par_num_dim == 0:
+                    dict_grps[grp_name][par_name] = data_type(par_data[0])
+                else:
+                    dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+        return dict_grps
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def get_group_params(itf, grp_name, par_names, log=False):
     """
@@ -1585,84 +1637,88 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
         Dictionary of marker information.
 
     """
-    start_fr = get_first_frame(itf)
-    end_fr = get_last_frame(itf)    
-    n_frs = end_fr-start_fr+1
-    idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-    if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS1')
-    if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS2')
-    if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS3')
-    if idx_pt_labels == -1:
-        if log: logger.debug('No POINT:LABELS parameter!')
-        return None
-    n_pt_labels = itf.GetParameterLength(idx_pt_labels)
-    if n_pt_labels < 1:
-        if log: logger.debug('No item under POINT:LABELS parameter!')
-        return None
-    idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-    if idx_pt_used == -1:
-        if log: logger.debug('No POINT:USED parameter!')
-        return None        
-    n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
-    if n_pt_used < 1:
-        if log: logger.debug('POINT:USED is zero!')
-        return None
-    idx_pt_desc = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
-    if idx_pt_desc == -1:
-        if log: logger.debug('No POINT:DESCRIPTIONS parameter!')
-        n_pt_desc = 0
-    else:
-        n_pt_desc = itf.GetParameterLength(idx_pt_desc)
-    dict_pts = {}
-    mkr_names = []
-    mkr_descs = []
-    dict_pts.update({'DATA':{}})
-    dict_pts['DATA'].update({'POS':{}})
-    if resid: dict_pts['DATA'].update({'RESID': {}})
-    if mask: dict_pts['DATA'].update({'MASK': {}})
-    for i in range(n_pt_labels):
-        if i < n_pt_used:
-            mkr_name = itf.GetParameterValue(idx_pt_labels, i)
-            if (tgt_mkr_names is not None) and (mkr_name not in tgt_mkr_names): continue
-            mkr_names.append(mkr_name)
-            mkr_data = np.zeros((n_frs, 3), dtype=np.float32)
-            for j in range(3):
-                mkr_data[:,j] = np.array(itf.GetPointDataEx(i, j, start_fr, end_fr, '1'), dtype=np.float32)
-            if blocked_nan or resid:
-                mkr_resid = np.array(itf.GetPointResidualEx(i, start_fr, end_fr), dtype=np.float32)
-            if blocked_nan:
-                mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
-                mkr_data[mkr_null_masks,:] = np.nan
-            dict_pts['DATA']['POS'].update({mkr_name: mkr_data})
-            if resid:
-                dict_pts['DATA']['RESID'].update({mkr_name: mkr_resid})
-            if mask:
-                mkr_mask = np.array(itf.GetPointMaskEx(i, start_fr, end_fr), dtype=str)
-                dict_pts['DATA']['MASK'].update({mkr_name: mkr_mask})
-            if desc:
-                if i < n_pt_desc:
-                    mkr_descs.append(itf.GetParameterValue(idx_pt_desc, i))
-                else:
-                    mkr_descs.append('')
-    dict_pts.update({'LABELS': np.array(mkr_names, dtype=str)})
-    idx_pt_rate = itf.GetParameterIndex('POINT', 'RATE')
-    if idx_pt_rate != -1:
-        n_pt_rate = itf.GetParameterLength(idx_pt_rate)
-        if n_pt_rate == 1:
-            rate = np.float32(itf.GetParameterValue(idx_pt_rate, 0))
-            dict_pts.update({'RATE': rate})
-    idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
-    if idx_pt_units != -1:
-        n_pt_units = itf.GetParameterLength(idx_pt_units)
-        if n_pt_units == 1:
-            unit = itf.GetParameterValue(idx_pt_units, 0)
-            dict_pts.update({'UNITS': unit})
-    if desc:
-        if idx_pt_desc != -1:
-            dict_pts.update({'DESCRIPTIONS': np.array(mkr_descs, dtype=str)})
-    if frame: dict_pts.update({'FRAME': get_video_frames(itf)})
-    if time: dict_pts.update({'TIME': get_video_times(itf)})
-    return dict_pts
+    try:
+        start_fr = get_first_frame(itf)
+        end_fr = get_last_frame(itf)    
+        n_frs = end_fr-start_fr+1
+        idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS1')
+        if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS2')
+        if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS3')
+        if idx_pt_labels == -1:
+            if log: logger.debug('No POINT:LABELS parameter')
+            return None
+        n_pt_labels = itf.GetParameterLength(idx_pt_labels)
+        if n_pt_labels < 1:
+            if log: logger.debug('No item under POINT:LABELS parameter')
+            return None
+        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        if idx_pt_used == -1:
+            if log: logger.debug('No POINT:USED parameter')
+            return None        
+        n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
+        if n_pt_used < 1:
+            if log: logger.debug('POINT:USED is zero!')
+            return None
+        idx_pt_desc = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
+        if idx_pt_desc == -1:
+            if log: logger.debug('No POINT:DESCRIPTIONS parameter')
+            n_pt_desc = 0
+        else:
+            n_pt_desc = itf.GetParameterLength(idx_pt_desc)
+        dict_pts = {}
+        mkr_names = []
+        mkr_descs = []
+        dict_pts.update({'DATA':{}})
+        dict_pts['DATA'].update({'POS':{}})
+        if resid: dict_pts['DATA'].update({'RESID': {}})
+        if mask: dict_pts['DATA'].update({'MASK': {}})
+        for i in range(n_pt_labels):
+            if i < n_pt_used:
+                mkr_name = itf.GetParameterValue(idx_pt_labels, i)
+                if (tgt_mkr_names is not None) and (mkr_name not in tgt_mkr_names): continue
+                mkr_names.append(mkr_name)
+                mkr_data = np.zeros((n_frs, 3), dtype=np.float32)
+                for j in range(3):
+                    mkr_data[:,j] = np.array(itf.GetPointDataEx(i, j, start_fr, end_fr, '1'), dtype=np.float32)
+                if blocked_nan or resid:
+                    mkr_resid = np.array(itf.GetPointResidualEx(i, start_fr, end_fr), dtype=np.float32)
+                if blocked_nan:
+                    mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
+                    mkr_data[mkr_null_masks,:] = np.nan
+                dict_pts['DATA']['POS'].update({mkr_name: mkr_data})
+                if resid:
+                    dict_pts['DATA']['RESID'].update({mkr_name: mkr_resid})
+                if mask:
+                    mkr_mask = np.array(itf.GetPointMaskEx(i, start_fr, end_fr), dtype=str)
+                    dict_pts['DATA']['MASK'].update({mkr_name: mkr_mask})
+                if desc:
+                    if i < n_pt_desc:
+                        mkr_descs.append(itf.GetParameterValue(idx_pt_desc, i))
+                    else:
+                        mkr_descs.append('')
+        dict_pts.update({'LABELS': np.array(mkr_names, dtype=str)})
+        idx_pt_rate = itf.GetParameterIndex('POINT', 'RATE')
+        if idx_pt_rate != -1:
+            n_pt_rate = itf.GetParameterLength(idx_pt_rate)
+            if n_pt_rate == 1:
+                rate = np.float32(itf.GetParameterValue(idx_pt_rate, 0))
+                dict_pts.update({'RATE': rate})
+        idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
+        if idx_pt_units != -1:
+            n_pt_units = itf.GetParameterLength(idx_pt_units)
+            if n_pt_units == 1:
+                unit = itf.GetParameterValue(idx_pt_units, 0)
+                dict_pts.update({'UNITS': unit})
+        if desc:
+            if idx_pt_desc != -1:
+                dict_pts.update({'DESCRIPTIONS': np.array(mkr_descs, dtype=str)})
+        if frame: dict_pts.update({'FRAME': get_video_frames(itf)})
+        if time: dict_pts.update({'TIME': get_video_times(itf)})
+        return dict_pts
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
 
 def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
     """
@@ -1689,85 +1745,89 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
         Dictionary of force information.
 
     """
-    start_fr = get_first_frame(itf)
-    end_fr = get_last_frame(itf)
-    idx_force_used = itf.GetParameterIndex('FORCE_PLATFORM', 'USED')
-    if idx_force_used == -1: 
-        if log: logger.debug(f'FORCE_PLATFORM:USED parameter does not exist!')
-        return None
-    n_force_used = itf.GetParameterValue(idx_force_used, 0)
-    if n_force_used < 1:
-        if log: logger.debug(f'FORCE_PLATFORM:USED is zero!')
-        return None
-    idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
-    if idx_force_chs == -1: 
-        if log: logger.debug(f'FORCE_PLATFORM:CHANNEL parameter does not exist!')
-        return None
-    idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    if idx_analog_labels == -1:
-        if log: logger.debug('No ANALOG:LABELS parameter!')
-        return None       
-    idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
-    if idx_analog_scale == -1:
-        if log: logger.debug('No ANALOG:SCALE parameter!')
-        return None     
-    idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
-    if idx_analog_offset == -1:
-        if log: logger.debug('No ANALOG:OFFSET parameter!')
-        return None
-    idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
-    if idx_analog_units == -1:
-        if log: logger.debug('No ANALOG:UNITS parameter!')
-        n_analog_units = 0
-    else:
-        n_analog_units = itf.GetParameterLength(idx_analog_units)
-    idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
-    if idx_analog_desc == -1:
-        if log: logger.debug('No ANALOG:DESCRIPTIONS parameter!')
-        n_analog_desc = 0
-    else:
-        n_analog_desc = itf.GetParameterLength(idx_analog_desc)
-    gen_scale = get_analog_gen_scale(itf)
-    sig_format = get_analog_format(itf)
-    is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
-    offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
-    dict_forces = {}
-    force_names = []
-    force_units = []
-    force_descs = []
-    dict_forces.update({'DATA':{}})
-    n_force_chs = itf.GetParameterLength(idx_force_chs)
-    for i in range(n_force_chs):
-        ch_idx = itf.GetParameterValue(idx_force_chs, i)-1
-        ch_name = itf.GetParameterValue(idx_analog_labels, ch_idx)
-        force_names.append(ch_name)
-        ch_scale = np.float32(itf.GetParameterValue(idx_analog_scale, ch_idx))
-        ch_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx)))
-        ch_val = (np.array(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-ch_offset)*ch_scale*gen_scale
-        dict_forces['DATA'].update({ch_name: ch_val})
-        if ch_idx < n_analog_units:
-            force_units.append(itf.GetParameterValue(idx_analog_units, ch_idx))
+    try:
+        start_fr = get_first_frame(itf)
+        end_fr = get_last_frame(itf)
+        idx_force_used = itf.GetParameterIndex('FORCE_PLATFORM', 'USED')
+        if idx_force_used == -1: 
+            if log: logger.debug(f'FORCE_PLATFORM:USED parameter does not exist')
+            return None
+        n_force_used = itf.GetParameterValue(idx_force_used, 0)
+        if n_force_used < 1:
+            if log: logger.debug(f'FORCE_PLATFORM:USED is zero')
+            return None
+        idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
+        if idx_force_chs == -1: 
+            if log: logger.debug(f'FORCE_PLATFORM:CHANNEL parameter does not exist')
+            return None
+        idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
+        if idx_analog_labels == -1:
+            if log: logger.debug('No ANALOG:LABELS parameter')
+            return None       
+        idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
+        if idx_analog_scale == -1:
+            if log: logger.debug('No ANALOG:SCALE parameter')
+            return None     
+        idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
+        if idx_analog_offset == -1:
+            if log: logger.debug('No ANALOG:OFFSET parameter')
+            return None
+        idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
+        if idx_analog_units == -1:
+            if log: logger.debug('No ANALOG:UNITS parameter')
+            n_analog_units = 0
         else:
-            force_units.append('')
-        if desc:
-            if ch_idx < n_analog_desc:
-                force_descs.append(itf.GetParameterValue(idx_analog_desc, ch_idx))
+            n_analog_units = itf.GetParameterLength(idx_analog_units)
+        idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
+        if idx_analog_desc == -1:
+            if log: logger.debug('No ANALOG:DESCRIPTIONS parameter')
+            n_analog_desc = 0
+        else:
+            n_analog_desc = itf.GetParameterLength(idx_analog_desc)
+        gen_scale = get_analog_gen_scale(itf)
+        sig_format = get_analog_format(itf)
+        is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
+        offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
+        dict_forces = {}
+        force_names = []
+        force_units = []
+        force_descs = []
+        dict_forces.update({'DATA':{}})
+        n_force_chs = itf.GetParameterLength(idx_force_chs)
+        for i in range(n_force_chs):
+            ch_idx = itf.GetParameterValue(idx_force_chs, i)-1
+            ch_name = itf.GetParameterValue(idx_analog_labels, ch_idx)
+            force_names.append(ch_name)
+            ch_scale = np.float32(itf.GetParameterValue(idx_analog_scale, ch_idx))
+            ch_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx)))
+            ch_val = (np.array(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-ch_offset)*ch_scale*gen_scale
+            dict_forces['DATA'].update({ch_name: ch_val})
+            if ch_idx < n_analog_units:
+                force_units.append(itf.GetParameterValue(idx_analog_units, ch_idx))
             else:
-                force_descs.append('')
-    dict_forces.update({'LABELS': np.array(force_names, dtype=str)})
-    idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
-    if idx_analog_rate != -1:
-        n_analog_rate = itf.GetParameterLength(idx_analog_rate)
-        if n_analog_rate == 1:
-            dict_forces.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
-    if idx_analog_units != -1:
-        dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
-    if desc:
-        if idx_analog_desc != -1:
-            dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
-    if frame: dict_forces.update({'FRAME': get_analog_frames(itf)})
-    if time: dict_forces.update({'TIME': get_analog_times(itf)})
-    return dict_forces
+                force_units.append('')
+            if desc:
+                if ch_idx < n_analog_desc:
+                    force_descs.append(itf.GetParameterValue(idx_analog_desc, ch_idx))
+                else:
+                    force_descs.append('')
+        dict_forces.update({'LABELS': np.array(force_names, dtype=str)})
+        idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
+        if idx_analog_rate != -1:
+            n_analog_rate = itf.GetParameterLength(idx_analog_rate)
+            if n_analog_rate == 1:
+                dict_forces.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
+        if idx_analog_units != -1:
+            dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
+        if desc:
+            if idx_analog_desc != -1:
+                dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
+        if frame: dict_forces.update({'FRAME': get_analog_frames(itf)})
+        if time: dict_forces.update({'TIME': get_analog_times(itf)})
+        return dict_forces
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
 
 def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True, log=False):
     """
@@ -1796,97 +1856,101 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
         Dictionary of analog information.
 
     """
-    start_fr = get_first_frame(itf)
-    end_fr = get_last_frame(itf)
-    n_force_chs = 0
-    idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
-    if idx_force_chs == -1: 
-        if log: logger.debug(f'FORCE_PLATFORM:CHANNEL parameter does not exist!')
+    try:
+        start_fr = get_first_frame(itf)
+        end_fr = get_last_frame(itf)
         n_force_chs = 0
-    else:
-        n_force_chs = itf.GetParameterLength(idx_force_chs)
-    force_ch_idx = []
-    if excl_forces:
-        for i in range(n_force_chs):
-            ch_idx = itf.GetParameterValue(idx_force_chs, i)-1
-            force_ch_idx.append(ch_idx)
-    idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    if idx_analog_labels == -1:
-        if log: logger.debug('No ANALOG:LABELS parameter!')
-        return None
-    n_analog_labels = itf.GetParameterLength(idx_analog_labels)
-    if n_analog_labels < 1:
-        if log: logger.debug('No item under ANALOG:LABELS parameter!')
-        return None    
-    idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
-    if idx_analog_used == -1:
-        if log: logger.debug('No ANALOG:USED parameter!')
-        return None
-    n_analog_used = itf.GetParameterValue(idx_analog_used, 0)
-    if n_analog_used < 1:
-        if log: logger.debug(f'ANALOG:USED is zero!')
-        return None    
-    idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
-    if idx_analog_scale == -1:
-        if log: logger.debug('No ANALOG:SCALE parameter!')
-        return None       
-    idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
-    if idx_analog_offset == -1:
-        if log: logger.debug('No ANALOG:OFFSET parameter!')
-        return None
-    idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
-    if idx_analog_units == -1:
-        if log: logger.debug('No ANALOG:UNITS parameter!')
-        n_analog_units = 0
-    else:
-        n_analog_units = itf.GetParameterLength(idx_analog_units)
-    idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
-    if idx_analog_desc == -1:
-        if log: logger.debug('No ANALOG:DESCRIPTIONS parameter!')
-        n_analog_desc = 0
-    else:
-        n_analog_desc = itf.GetParameterLength(idx_analog_desc)
-    gen_scale = get_analog_gen_scale(itf)
-    sig_format = get_analog_format(itf)
-    is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
-    offset_dtype = [np.int16, np.uint16][is_sig_unsigned]    
-    dict_analogs = {}
-    analog_names = []
-    analog_units = []
-    analog_descs = []
-    dict_analogs.update({'DATA':{}})
-    for i in range(n_analog_labels):
-        if i < n_analog_used:
-            if i in force_ch_idx: continue
-            sig_name = itf.GetParameterValue(idx_analog_labels, i)
-            analog_names.append(sig_name)
-            sig_scale = np.float32(itf.GetParameterValue(idx_analog_scale, i))
-            sig_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, i)))
-            sig_val = (np.array(itf.GetAnalogDataEx(i, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
-            dict_analogs['DATA'].update({sig_name: sig_val})
-            if i < n_analog_units:
-                analog_units.append(itf.GetParameterValue(idx_analog_units, i))
-            else:
-                analog_units.append('')
-            if desc:
-                if i < n_analog_desc:
-                    analog_descs.append(itf.GetParameterValue(idx_analog_desc, i))
+        idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
+        if idx_force_chs == -1: 
+            if log: logger.debug(f'FORCE_PLATFORM:CHANNEL parameter does not exist!')
+            n_force_chs = 0
+        else:
+            n_force_chs = itf.GetParameterLength(idx_force_chs)
+        force_ch_idx = []
+        if excl_forces:
+            for i in range(n_force_chs):
+                ch_idx = itf.GetParameterValue(idx_force_chs, i)-1
+                force_ch_idx.append(ch_idx)
+        idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
+        if idx_analog_labels == -1:
+            if log: logger.debug('No ANALOG:LABELS parameter!')
+            return None
+        n_analog_labels = itf.GetParameterLength(idx_analog_labels)
+        if n_analog_labels < 1:
+            if log: logger.debug('No item under ANALOG:LABELS parameter!')
+            return None    
+        idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
+        if idx_analog_used == -1:
+            if log: logger.debug('No ANALOG:USED parameter!')
+            return None
+        n_analog_used = itf.GetParameterValue(idx_analog_used, 0)
+        if n_analog_used < 1:
+            if log: logger.debug(f'ANALOG:USED is zero!')
+            return None    
+        idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
+        if idx_analog_scale == -1:
+            if log: logger.debug('No ANALOG:SCALE parameter!')
+            return None       
+        idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
+        if idx_analog_offset == -1:
+            if log: logger.debug('No ANALOG:OFFSET parameter!')
+            return None
+        idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
+        if idx_analog_units == -1:
+            if log: logger.debug('No ANALOG:UNITS parameter!')
+            n_analog_units = 0
+        else:
+            n_analog_units = itf.GetParameterLength(idx_analog_units)
+        idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
+        if idx_analog_desc == -1:
+            if log: logger.debug('No ANALOG:DESCRIPTIONS parameter!')
+            n_analog_desc = 0
+        else:
+            n_analog_desc = itf.GetParameterLength(idx_analog_desc)
+        gen_scale = get_analog_gen_scale(itf)
+        sig_format = get_analog_format(itf)
+        is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
+        offset_dtype = [np.int16, np.uint16][is_sig_unsigned]    
+        dict_analogs = {}
+        analog_names = []
+        analog_units = []
+        analog_descs = []
+        dict_analogs.update({'DATA':{}})
+        for i in range(n_analog_labels):
+            if i < n_analog_used:
+                if i in force_ch_idx: continue
+                sig_name = itf.GetParameterValue(idx_analog_labels, i)
+                analog_names.append(sig_name)
+                sig_scale = np.float32(itf.GetParameterValue(idx_analog_scale, i))
+                sig_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, i)))
+                sig_val = (np.array(itf.GetAnalogDataEx(i, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
+                dict_analogs['DATA'].update({sig_name: sig_val})
+                if i < n_analog_units:
+                    analog_units.append(itf.GetParameterValue(idx_analog_units, i))
                 else:
-                    analog_descs.append('')
-    dict_analogs.update({'LABELS': np.array(analog_names, dtype=str)})
-    idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
-    if idx_analog_rate != -1:
-        n_analog_rate = itf.GetParameterLength(idx_analog_rate)
-        if n_analog_rate == 1:
-            dict_analogs.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
-    if idx_analog_units != -1:
-        dict_analogs.update({'UNITS': np.array(analog_units, dtype=str)})
-    if desc:
-        if idx_analog_desc != -1:
-            dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
-    if frame: dict_analogs.update({'FRAME': get_analog_frames(itf)})
-    if time: dict_analogs.update({'TIME': get_analog_times(itf)})
-    return dict_analogs
+                    analog_units.append('')
+                if desc:
+                    if i < n_analog_desc:
+                        analog_descs.append(itf.GetParameterValue(idx_analog_desc, i))
+                    else:
+                        analog_descs.append('')
+        dict_analogs.update({'LABELS': np.array(analog_names, dtype=str)})
+        idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
+        if idx_analog_rate != -1:
+            n_analog_rate = itf.GetParameterLength(idx_analog_rate)
+            if n_analog_rate == 1:
+                dict_analogs.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
+        if idx_analog_units != -1:
+            dict_analogs.update({'UNITS': np.array(analog_units, dtype=str)})
+        if desc:
+            if idx_analog_desc != -1:
+                dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
+        if frame: dict_analogs.update({'FRAME': get_analog_frames(itf)})
+        if time: dict_analogs.update({'TIME': get_analog_times(itf)})
+        return dict_analogs
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
     
 def change_marker_name(itf, mkr_name_old, mkr_name_new, log=False):
     """
@@ -1909,16 +1973,20 @@ def change_marker_name(itf, mkr_name_old, mkr_name_new, log=False):
         True or False.
 
     """
-    mkr_idx = get_marker_index(itf, mkr_name_old, log)
-    if mkr_idx == -1 or mkr_idx is None: return False
-    par_idx = itf.GetParameterIndex('POINT', 'LABELS')
-    if par_idx == -1:
-        if log: logger.debug('No POINT:LABELS parameter!')
-        return False
-    ret = itf.SetParameterValue(par_idx, mkr_idx, mkr_name_new)
-    if log:
-        logger.info(f'Changing of the marker name from "{mkr_name_old}" to "{mkr_name_new}" is {["not performed.", "performed."][ret]}')
-    return [False, True][ret]
+    try:
+        mkr_idx = get_marker_index(itf, mkr_name_old, log)
+        if mkr_idx == -1 or mkr_idx is None: return False
+        par_idx = itf.GetParameterIndex('POINT', 'LABELS')
+        if par_idx == -1:
+            if log: logger.debug('No POINT:LABELS parameter')
+            return False
+        ret = itf.SetParameterValue(par_idx, mkr_idx, mkr_name_new)
+        if log:
+            logger.info(f'Changing the marker name from "{mkr_name_old}" to "{mkr_name_new}": {["FAILURE", "SUCCESS"][ret]}')
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
     """
@@ -1941,16 +2009,20 @@ def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
         True or False.
 
     """
-    sig_idx = get_analog_index(itf, sig_name_old, log)
-    if sig_idx == -1 or sig_idx is None: return False
-    par_idx = itf.GetParameterIndex('ANALOG', 'LABELS')
-    if par_idx == -1:
-        if log: logger.debug('No ANALOG:LABELS parameter!')
-        return False        
-    ret = itf.SetParameterValue(par_idx, sig_idx, sig_name_new)
-    if log:
-        logger.info(f'Changing of the signal name from "{sig_name_old}" to "{sig_name_new}" is {["not performed.", "performed."][ret]}')    
-    return [False, True][ret]
+    try:
+        sig_idx = get_analog_index(itf, sig_name_old, log)
+        if sig_idx == -1 or sig_idx is None: return False
+        par_idx = itf.GetParameterIndex('ANALOG', 'LABELS')
+        if par_idx == -1:
+            if log: logger.debug('No ANALOG:LABELS parameter')
+            return False        
+        ret = itf.SetParameterValue(par_idx, sig_idx, sig_name_new)
+        if log:
+            logger.info(f'Changing the signal name from "{sig_name_old}" to "{sig_name_new}": {["FAILURE", "SUCCESS"][ret]}')    
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=False):
     """
@@ -1965,7 +2037,7 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
     mkr_name : str
         A new marker name.
     mkr_coords : numpy array
-        A numpy array of new marker coordinates.
+        A numpy array of new marker coordinates. This is assumed as a scaled one.
     mkr_resid : numpy array or None, optional
         A numpy array of new marker residuals. The default is None.
     mkr_desc: str or None, optional
@@ -1979,80 +2051,84 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
         True of False.
 
     """
-    if log: logger.debug(f'Start adding a new "{mkr_name}" marker ...')
-    start_fr = get_first_frame(itf)
-    n_frs = get_num_frames(itf)
-    if not (mkr_coords.ndim == 2 and mkr_coords.shape[0] == n_frs and mkr_coords.shape[1] == 3):
-        if log: logger.error('The dimension of the input marker coordinates are not valid!')
-        return False
-    if mkr_resid is not None:
-        if not (mkr_resid.ndim == 1 and mkr_resid.shape[0] == n_frs):
-            if log: logger.error('The dimension of the input marker residuals are not valid!')
+    try:
+        if log: logger.debug(f'Start adding a new "{mkr_name}" marker ...')
+        start_fr = get_first_frame(itf)
+        n_frs = get_num_frames(itf)
+        if not (mkr_coords.ndim == 2 and mkr_coords.shape[0] == n_frs and mkr_coords.shape[1] == 3):
+            if log: logger.error('The dimension of the input marker coordinates are not valid')
             return False
-    ret = 0
-    # Check the value 'POINT:USED'
-    par_idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-    n_pt_used_before = itf.GetParameterValue(par_idx_pt_used, 0)
-    # Check the value 'POINT:LABELS'
-    par_idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-    n_pt_labels_before = itf.GetParameterLength(par_idx_pt_labels)
-    # Skip if 'POINT:USED' and 'POINT:LABELS' have different numbers
-    if n_pt_used_before != n_pt_labels_before:
-        if log: logger.error('This function only works if POINT:USED is as same as the number of items under POINT:LABELS!')
-        return False
-    # Add an parameter to the 'POINT:LABELS' section
-    # par_idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-    ret = itf.AddParameterData(par_idx_pt_labels, 1)
-    n_pt_labels = itf.GetParameterLength(par_idx_pt_labels)
-    variant = win32.VARIANT(pythoncom.VT_BSTR, np.string_(mkr_name))
-    ret = itf.SetParameterValue(par_idx_pt_labels, n_pt_labels-1, variant)
-    # Add a null parameter in the 'POINT:DESCRIPTIONS' section
-    par_idx_pt_desc = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
-    ret = itf.AddParameterData(par_idx_pt_desc, 1)
-    n_pt_desc = itf.GetParameterLength(par_idx_pt_desc)
-    mkr_desc_adjusted = '' if mkr_desc is None else mkr_desc
-    variant = win32.VARIANT(pythoncom.VT_BSTR, np.string_(mkr_desc_adjusted))
-    ret = itf.SetParameterValue(par_idx_pt_desc, n_pt_desc-1, variant)
-    # Add a marker
-    new_mkr_idx = itf.AddMarker()
-    n_mkrs = itf.GetNumber3DPoints()
-    mkr_null_mask = np.any(np.isnan(mkr_coords), axis=1)
-    mkr_resid_adjusted = np.zeros((n_frs, ), dtype=np.float32) if mkr_resid is None else np.array(mkr_resid, dtype=np.float32)
-    mkr_resid_adjusted[mkr_null_mask] = -1
-    mkr_masks = np.array(['0000000']*n_frs, dtype = np.string_)
-    mkr_scale = get_marker_scale(itf)
-    is_c3d_float = mkr_scale < 0
-    is_c3d_float2 = [False, True][itf.GetDataType()-1]
-    if is_c3d_float != is_c3d_float2:
-        if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter.')
-    mkr_dtype = [np.int16, np.float32][is_c3d_float]    
-    scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
-    if is_c3d_float:
-        mkr_coords_unscaled = np.asarray(np.nan_to_num(mkr_coords), dtype=mkr_dtype)
-    else:
-        mkr_coords_unscaled = np.asarray(np.round(np.nan_to_num(mkr_coords)/scale_size), dtype=mkr_dtype)
-    dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
-    dtype_arr = pythoncom.VT_ARRAY|dtype
-    for i in range(3):
-        variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
-        ret = itf.SetPointDataEx(n_mkrs-1, i, start_fr, variant)
-    variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, mkr_resid_adjusted)
-    ret = itf.SetPointDataEx(n_mkrs-1, 3, start_fr, variant)
-    variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, mkr_masks)
-    ret = itf.SetPointDataEx(n_mkrs-1, 4, start_fr, variant)        
-    var_const = win32.VARIANT(dtype, 1)
-    for i in range(3):
-        for idx, val in enumerate(mkr_coords_unscaled[:,i]):
-            if val == 1:
-                ret = itf.SetPointData(n_mkrs-1, i, start_fr+idx, var_const)
-    return [False, True][ret]
-    # Increase the value 'POINT:USED' by the 1
-    par_idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-    n_pt_used_after = itf.GetParameterValue(par_idx_pt_used, 0)
-    if n_pt_used_after != (n_pt_used_before+1):
-        if log: log.debug('POINT:USED was not properly updated so that manual update will be executed.')
-        ret = itf.SetParameterValue(par_idx_pt_used, 0, (n_pt_used_before+1))
-    return [False, True][ret]
+        if mkr_resid is not None:
+            if not (mkr_resid.ndim == 1 and mkr_resid.shape[0] == n_frs):
+                if log: logger.error('The dimension of the input marker residuals are not valid')
+                return False
+        ret = 0
+        # Check the value 'POINT:USED'
+        par_idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        n_pt_used_before = itf.GetParameterValue(par_idx_pt_used, 0)
+        # Check the value 'POINT:LABELS'
+        par_idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        n_pt_labels_before = itf.GetParameterLength(par_idx_pt_labels)
+        # Skip if 'POINT:USED' and 'POINT:LABELS' have different numbers
+        if n_pt_used_before != n_pt_labels_before:
+            if log: logger.error('This function only works if POINT:USED is as same as the number of items under POINT:LABELS')
+            return False
+        # Add an parameter to the 'POINT:LABELS' section
+        # par_idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        ret = itf.AddParameterData(par_idx_pt_labels, 1)
+        n_pt_labels = itf.GetParameterLength(par_idx_pt_labels)
+        variant = win32.VARIANT(pythoncom.VT_BSTR, np.string_(mkr_name))
+        ret = itf.SetParameterValue(par_idx_pt_labels, n_pt_labels-1, variant)
+        # Add a null parameter in the 'POINT:DESCRIPTIONS' section
+        par_idx_pt_desc = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
+        ret = itf.AddParameterData(par_idx_pt_desc, 1)
+        n_pt_desc = itf.GetParameterLength(par_idx_pt_desc)
+        mkr_desc_adjusted = '' if mkr_desc is None else mkr_desc
+        variant = win32.VARIANT(pythoncom.VT_BSTR, np.string_(mkr_desc_adjusted))
+        ret = itf.SetParameterValue(par_idx_pt_desc, n_pt_desc-1, variant)
+        # Add a marker
+        new_mkr_idx = itf.AddMarker()
+        n_mkrs = itf.GetNumber3DPoints()
+        mkr_null_mask = np.any(np.isnan(mkr_coords), axis=1)
+        mkr_resid_adjusted = np.zeros((n_frs, ), dtype=np.float32) if mkr_resid is None else np.array(mkr_resid, dtype=np.float32)
+        mkr_resid_adjusted[mkr_null_mask] = -1
+        mkr_masks = np.array(['0000000']*n_frs, dtype = np.string_)
+        mkr_scale = get_marker_scale(itf)
+        is_c3d_float = mkr_scale < 0
+        is_c3d_float2 = [False, True][itf.GetDataType()-1]
+        if is_c3d_float != is_c3d_float2:
+            if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter')
+        mkr_dtype = [np.int16, np.float32][is_c3d_float]    
+        scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
+        if is_c3d_float:
+            mkr_coords_unscaled = np.asarray(np.nan_to_num(mkr_coords), dtype=mkr_dtype)
+        else:
+            mkr_coords_unscaled = np.asarray(np.round(np.nan_to_num(mkr_coords)/scale_size), dtype=mkr_dtype)
+        dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
+        dtype_arr = pythoncom.VT_ARRAY|dtype
+        for i in range(3):
+            variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
+            ret = itf.SetPointDataEx(n_mkrs-1, i, start_fr, variant)
+        variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, mkr_resid_adjusted)
+        ret = itf.SetPointDataEx(n_mkrs-1, 3, start_fr, variant)
+        variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, mkr_masks)
+        ret = itf.SetPointDataEx(n_mkrs-1, 4, start_fr, variant)        
+        var_const = win32.VARIANT(dtype, 1)
+        for i in range(3):
+            for idx, val in enumerate(mkr_coords_unscaled[:,i]):
+                if val == 1:
+                    ret = itf.SetPointData(n_mkrs-1, i, start_fr+idx, var_const)
+        return [False, True][ret]
+        # Increase the value 'POINT:USED' by the 1
+        par_idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        n_pt_used_after = itf.GetParameterValue(par_idx_pt_used, 0)
+        if n_pt_used_after != (n_pt_used_before+1):
+            if log: log.debug('POINT:USED was not properly updated so that manual update will be executed')
+            ret = itf.SetParameterValue(par_idx_pt_used, 0, (n_pt_used_before+1))
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, sig_gain=0, sig_desc=None, log=False):
     """
@@ -2067,7 +2143,7 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
     sig_name : str
         A new analog channel name.
     sig_value : numpy array
-        A new analog channel value.
+        A new analog channel value. This is assumed as a scaled one.
     sig_unit : str
         A new analog channel unit.        
     sig_scale : float, optional
@@ -2087,72 +2163,76 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
         True or False.
 
     """
-    if log: logger.debug(f'Start adding a new "{sig_name}" analog channel ...')
-    start_fr = get_first_frame(itf)
-    n_frs = get_num_frames(itf)
-    av_ratio = get_analog_video_ratio(itf)
-    if sig_value.ndim!=1 or sig_value.shape[0]!=(n_frs*av_ratio):
-        if log: logger.error('The dimension of the input is not compatible!')
-        return False
-    # Check 'ANALOG:USED'
-    n_idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
-    n_cnt_analog_used_before = itf.GetParameterValue(n_idx_analog_used, 0) 
-    # Check 'ANALOG:LABELS'
-    n_idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    n_cnt_analog_labels_before = itf.GetParameterLength(n_idx_analog_labels)
-    # Skip if 'ANALOG:USED' and 'ANALOG:LABELS' have different numbers
-    if n_cnt_analog_used_before != n_cnt_analog_labels_before:
-        if log: logger.error('This function only works if ANALOG:USED is as same as the number of items under ANALOG:LABELS!')
-        return False    
-    # Add an parameter to the 'ANALOG:LABELS' section
-    n_idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
-    ret = itf.AddParameterData(n_idx_analog_labels, 1)
-    n_cnt_analog_labels = itf.GetParameterLength(n_idx_analog_labels)
-    ret = itf.SetParameterValue(n_idx_analog_labels, n_cnt_analog_labels-1, win32.VARIANT(pythoncom.VT_BSTR, sig_name))
-    # Add an parameter to the 'ANALOG:UNITS' section
-    n_idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
-    ret = itf.AddParameterData(n_idx_analog_units, 1)
-    n_cnt_analog_units = itf.GetParameterLength(n_idx_analog_units)
-    ret = itf.SetParameterValue(n_idx_analog_units, n_cnt_analog_units-1, win32.VARIANT(pythoncom.VT_BSTR, sig_unit))      
-    # Add an parameter to the 'ANALOG:SCALE' section
-    n_idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
-    ret = itf.AddParameterData(n_idx_analog_scale, 1)
-    n_cnt_analog_scale = itf.GetParameterLength(n_idx_analog_scale)
-    ret = itf.SetParameterValue(n_idx_analog_scale, n_cnt_analog_scale-1, win32.VARIANT(pythoncom.VT_R4, sig_scale))
-    # Add an parameter to the 'ANALOG:OFFSET' section
-    n_idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
-    ret = itf.AddParameterData(n_idx_analog_offset, 1)
-    n_cnt_analog_offset = itf.GetParameterLength(n_idx_analog_offset)
-    sig_format = get_analog_format(itf)
-    is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
-    sig_offset_comtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_sig_unsigned]
-    sig_offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
-    ret = itf.SetParameterValue(n_idx_analog_offset, n_cnt_analog_offset-1, win32.VARIANT(sig_offset_comtype, sig_offset))
-    # Check for 'ANALOG:GAIN' section and add 0 if it exists
-    n_idx_analog_gain = itf.GetParameterIndex('ANALOG', 'GAIN')
-    if n_idx_analog_gain != -1:
-        ret = itf.AddParameterData(n_idx_analog_gain, 1)
-        n_cnt_analog_gain = itf.GetParameterLength(n_idx_analog_gain)
-        ret = itf.SetParameterValue(n_idx_analog_gain, n_cnt_analog_gain-1, win32.VARIANT(pythoncom.VT_I2, sig_gain))    
-    # Add an parameter to the 'ANALOG:DESCRIPTIONS' section
-    n_idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
-    ret = itf.AddParameterData(n_idx_analog_desc, 1)
-    n_cnt_analog_desc = itf.GetParameterLength(n_idx_analog_desc)
-    sig_desc_in = sig_name if sig_desc is None else sig_desc
-    ret = itf.SetParameterValue(n_idx_analog_desc, n_cnt_analog_desc-1, win32.VARIANT(pythoncom.VT_BSTR, sig_desc_in))
-    # Create an analog channel
-    n_idx_new_analog_ch = itf.AddAnalogChannel()
-    n_cnt_analog_chs = itf.GetAnalogChannels()
-    gen_scale = get_analog_gen_scale(itf)
-    sig_value_unscaled = np.asarray(sig_value, dtype=np.float32)/(np.float32(sig_scale)*gen_scale)+np.float32(sig_offset_dtype(sig_offset))
-    ret = itf.SetAnalogDataEx(n_idx_new_analog_ch, start_fr, win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled))
-    # Increase the value 'ANALOG:USED' by the 1
-    n_idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
-    n_cnt_analog_used_after = itf.GetParameterValue(n_idx_analog_used, 0)
-    if n_cnt_analog_used_after != (n_cnt_analog_used_before+1):
-        if log: log.debug('ANALOG:USED was not properly updated so that manual update will be executed.')
-        ret = itf.SetParameterValue(n_idx_analog_used, 0, (n_cnt_analog_used_before+1))
-    return [False, True][ret]
+    try:
+        if log: logger.debug(f'Start adding a new "{sig_name}" analog channel ...')
+        start_fr = get_first_frame(itf)
+        n_frs = get_num_frames(itf)
+        av_ratio = get_analog_video_ratio(itf)
+        if sig_value.ndim!=1 or sig_value.shape[0]!=(n_frs*av_ratio):
+            if log: logger.error('The dimension of the input is not compatible')
+            return False
+        # Check 'ANALOG:USED'
+        n_idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
+        n_cnt_analog_used_before = itf.GetParameterValue(n_idx_analog_used, 0) 
+        # Check 'ANALOG:LABELS'
+        n_idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
+        n_cnt_analog_labels_before = itf.GetParameterLength(n_idx_analog_labels)
+        # Skip if 'ANALOG:USED' and 'ANALOG:LABELS' have different numbers
+        if n_cnt_analog_used_before != n_cnt_analog_labels_before:
+            if log: logger.error('This function only works if ANALOG:USED is as same as the number of items under ANALOG:LABELS')
+            return False    
+        # Add an parameter to the 'ANALOG:LABELS' section
+        n_idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
+        ret = itf.AddParameterData(n_idx_analog_labels, 1)
+        n_cnt_analog_labels = itf.GetParameterLength(n_idx_analog_labels)
+        ret = itf.SetParameterValue(n_idx_analog_labels, n_cnt_analog_labels-1, win32.VARIANT(pythoncom.VT_BSTR, sig_name))
+        # Add an parameter to the 'ANALOG:UNITS' section
+        n_idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
+        ret = itf.AddParameterData(n_idx_analog_units, 1)
+        n_cnt_analog_units = itf.GetParameterLength(n_idx_analog_units)
+        ret = itf.SetParameterValue(n_idx_analog_units, n_cnt_analog_units-1, win32.VARIANT(pythoncom.VT_BSTR, sig_unit))      
+        # Add an parameter to the 'ANALOG:SCALE' section
+        n_idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
+        ret = itf.AddParameterData(n_idx_analog_scale, 1)
+        n_cnt_analog_scale = itf.GetParameterLength(n_idx_analog_scale)
+        ret = itf.SetParameterValue(n_idx_analog_scale, n_cnt_analog_scale-1, win32.VARIANT(pythoncom.VT_R4, sig_scale))
+        # Add an parameter to the 'ANALOG:OFFSET' section
+        n_idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
+        ret = itf.AddParameterData(n_idx_analog_offset, 1)
+        n_cnt_analog_offset = itf.GetParameterLength(n_idx_analog_offset)
+        sig_format = get_analog_format(itf)
+        is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
+        sig_offset_comtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_sig_unsigned]
+        sig_offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
+        ret = itf.SetParameterValue(n_idx_analog_offset, n_cnt_analog_offset-1, win32.VARIANT(sig_offset_comtype, sig_offset))
+        # Check for 'ANALOG:GAIN' section and add 0 if it exists
+        n_idx_analog_gain = itf.GetParameterIndex('ANALOG', 'GAIN')
+        if n_idx_analog_gain != -1:
+            ret = itf.AddParameterData(n_idx_analog_gain, 1)
+            n_cnt_analog_gain = itf.GetParameterLength(n_idx_analog_gain)
+            ret = itf.SetParameterValue(n_idx_analog_gain, n_cnt_analog_gain-1, win32.VARIANT(pythoncom.VT_I2, sig_gain))    
+        # Add an parameter to the 'ANALOG:DESCRIPTIONS' section
+        n_idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
+        ret = itf.AddParameterData(n_idx_analog_desc, 1)
+        n_cnt_analog_desc = itf.GetParameterLength(n_idx_analog_desc)
+        sig_desc_in = sig_name if sig_desc is None else sig_desc
+        ret = itf.SetParameterValue(n_idx_analog_desc, n_cnt_analog_desc-1, win32.VARIANT(pythoncom.VT_BSTR, sig_desc_in))
+        # Create an analog channel
+        n_idx_new_analog_ch = itf.AddAnalogChannel()
+        n_cnt_analog_chs = itf.GetAnalogChannels()
+        gen_scale = get_analog_gen_scale(itf)
+        sig_value_unscaled = np.asarray(sig_value, dtype=np.float32)/(np.float32(sig_scale)*gen_scale)+np.float32(sig_offset_dtype(sig_offset))
+        ret = itf.SetAnalogDataEx(n_idx_new_analog_ch, start_fr, win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled))
+        # Increase the value 'ANALOG:USED' by the 1
+        n_idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
+        n_cnt_analog_used_after = itf.GetParameterValue(n_idx_analog_used, 0)
+        if n_cnt_analog_used_after != (n_cnt_analog_used_before+1):
+            if log: log.debug('ANALOG:USED was not properly updated so that manual update will be executed')
+            ret = itf.SetParameterValue(n_idx_analog_used, 0, (n_cnt_analog_used_before+1))
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def delete_frames(itf, start_frame, num_frames, log=False):
     """
@@ -2175,14 +2255,18 @@ def delete_frames(itf, start_frame, num_frames, log=False):
         Number of the remaining frames in the C3D file.
 
     """
-    if start_frame < get_first_frame(itf):
-        if log: logger.error(f'Given start frame number should be equal or greater than {get_first_frame(itf)} for the open file!')
-        return None
-    elif start_frame >= get_last_frame(itf):
-        if log: logger.error(f'Given start frame number should be less than {get_last_frame(itf)} for the open file!')
-        return None
-    n_frs_updated = itf.DeleteFrames(start_frame, num_frames)
-    return n_frs_updated
+    try:
+        if start_frame < get_first_frame(itf):
+            if log: logger.error(f'"start_frame" number should be equal or greater than {get_first_frame(itf)}')
+            return None
+        elif start_frame >= get_last_frame(itf):
+            if log: logger.error(f'"start_frame" number should be less than {get_last_frame(itf)}')
+            return None
+        n_frs_updated = itf.DeleteFrames(start_frame, num_frames)
+        return n_frs_updated
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
 
 def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
     """
@@ -2207,38 +2291,42 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
         True or False.
 
     """
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
-    if not fr_check:
-        if log: logger.error('Given "start_frame" is not proper!')
-        return False
-    n_frs = end_fr-start_fr+1
-    if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
-        if log: logger.error('The dimension of the input is not compatible!')
-        return False    
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1 or mkr_idx is None: return False
-    mkr_scale = get_marker_scale(itf)
-    is_c3d_float = mkr_scale < 0
-    is_c3d_float2 = [False, True][itf.GetDataType()-1]
-    if is_c3d_float != is_c3d_float2:
-        if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter.')
-    mkr_dtype = [np.int16, np.float32][is_c3d_float]
-    scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
-    if is_c3d_float:
-        mkr_coords_unscaled = np.asarray(np.nan_to_num(mkr_coords), dtype=mkr_dtype)
-    else:
-        mkr_coords_unscaled = np.asarray(np.round(np.nan_to_num(mkr_coords)/scale_size), dtype=mkr_dtype)
-    dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
-    dtype_arr = pythoncom.VT_ARRAY|dtype
-    for i in range(3):
-        variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
-        ret = itf.SetPointDataEx(mkr_idx, i, start_fr, variant)
-    var_const = win32.VARIANT(dtype, 1)
-    for i in range(3):
-        for idx, val in enumerate(mkr_coords_unscaled[:,i]):
-            if val == 1:
-                ret = itf.SetPointData(mkr_idx, i, start_fr+idx, var_const)
-    return [False, True][ret]
+    try:
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
+        if not fr_check:
+            if log: logger.error('Given "start_frame" is not proper')
+            return False
+        n_frs = end_fr-start_fr+1
+        if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
+            if log: logger.error('The dimension of the input is not compatible')
+            return False    
+        mkr_idx = get_marker_index(itf, mkr_name, log)
+        if mkr_idx == -1 or mkr_idx is None: return False
+        mkr_scale = get_marker_scale(itf)
+        is_c3d_float = mkr_scale < 0
+        is_c3d_float2 = [False, True][itf.GetDataType()-1]
+        if is_c3d_float != is_c3d_float2:
+            if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter')
+        mkr_dtype = [np.int16, np.float32][is_c3d_float]
+        scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
+        if is_c3d_float:
+            mkr_coords_unscaled = np.asarray(np.nan_to_num(mkr_coords), dtype=mkr_dtype)
+        else:
+            mkr_coords_unscaled = np.asarray(np.round(np.nan_to_num(mkr_coords)/scale_size), dtype=mkr_dtype)
+        dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
+        dtype_arr = pythoncom.VT_ARRAY|dtype
+        for i in range(3):
+            variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
+            ret = itf.SetPointDataEx(mkr_idx, i, start_fr, variant)
+        var_const = win32.VARIANT(dtype, 1)
+        for i in range(3):
+            for idx, val in enumerate(mkr_coords_unscaled[:,i]):
+                if val == 1:
+                    ret = itf.SetPointData(mkr_idx, i, start_fr+idx, var_const)
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
     
 def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
     """
@@ -2263,25 +2351,29 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
         True or False.
 
     """
-    fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
-    if not fr_check: 
-        if log: logger.error('Given "start_frame" is not proper!')
-        return False
-    n_frs = end_fr-start_fr+1
-    if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
-        if log: logger.error('The dimension of the input is not compatible!')
-        return False
-    mkr_idx = get_marker_index(itf, mkr_name, log)
-    if mkr_idx == -1 or mkr_idx is None: return False
-    dtype = pythoncom.VT_R4
-    dtype_arr = pythoncom.VT_ARRAY|dtype
-    variant = win32.VARIANT(dtype_arr, mkr_resid)
-    ret = itf.SetPointDataEx(mkr_idx, 3, start_fr, variant)
-    var_const = win32.VARIANT(dtype, 1)
-    for idx, val in enumerate(mkr_resid):
-        if val == 1:
-            ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
-    return [False, True][ret]
+    try:
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
+        if not fr_check: 
+            if log: logger.error('Given "start_frame" is not proper')
+            return False
+        n_frs = end_fr-start_fr+1
+        if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
+            if log: logger.error('The dimension of the input is not compatible')
+            return False
+        mkr_idx = get_marker_index(itf, mkr_name, log)
+        if mkr_idx == -1 or mkr_idx is None: return False
+        dtype = pythoncom.VT_R4
+        dtype_arr = pythoncom.VT_ARRAY|dtype
+        variant = win32.VARIANT(dtype_arr, mkr_resid)
+        ret = itf.SetPointDataEx(mkr_idx, 3, start_fr, variant)
+        var_const = win32.VARIANT(dtype, 1)
+        for idx, val in enumerate(mkr_resid):
+            if val == 1:
+                ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
 
 def recover_marker_rel(itf, tgt_mkr_name, cl_mkr_names, log=False):
     """
