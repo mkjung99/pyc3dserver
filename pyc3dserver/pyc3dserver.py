@@ -381,8 +381,8 @@ def get_num_frames(itf, log=False):
 
     """
     try:
-        first_fr = get_first_frame(itf, log)
-        last_fr = get_last_frame(itf, log)
+        first_fr = get_first_frame(itf, log=log)
+        last_fr = get_last_frame(itf, log=log)
         n_frs = last_fr-first_fr+1
         return np.int32(n_frs)        
     except pythoncom.com_error as err:
@@ -415,8 +415,8 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
 
     """
     try:
-        first_fr = get_first_frame(itf, log)
-        last_fr = get_last_frame(itf, log)
+        first_fr = get_first_frame(itf, log=log)
+        last_fr = get_last_frame(itf, log=log)
         if start_frame is None:
             start_fr = first_fr
         else:
@@ -508,8 +508,8 @@ def get_analog_fps(itf, log=False):
 
     """
     try:
-        vid_fps = get_video_fps(itf, log)
-        av_ratio = get_analog_video_ratio(itf, log)
+        vid_fps = get_video_fps(itf, log=log)
+        av_ratio = get_analog_video_ratio(itf, log=log)
         return np.float32(vid_fps*np.float32(av_ratio))
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -533,8 +533,8 @@ def get_video_frames(itf, log=False):
 
     """
     try:
-        first_fr = get_first_frame(itf, log)
-        last_fr = get_last_frame(itf, log)
+        first_fr = get_first_frame(itf, log=log)
+        last_fr = get_last_frame(itf, log=log)
         n_frs = last_fr-first_fr+1
         frs = np.linspace(start=first_fr, stop=last_fr, num=n_frs, dtype=np.int32)
         return frs       
@@ -560,9 +560,9 @@ def get_analog_frames(itf, log=False):
 
     """
     try:
-        first_fr = get_first_frame(itf, log)
-        last_fr = get_last_frame(itf, log)  
-        av_ratio = get_analog_video_ratio(itf, log)
+        first_fr = get_first_frame(itf, log=log)
+        last_fr = get_last_frame(itf, log=log)  
+        av_ratio = get_analog_video_ratio(itf, log=log)
         start_fr = np.float32(first_fr)
         end_fr = np.float32(last_fr)+np.float32(av_ratio-1)/np.float32(av_ratio)
         n_frs = last_fr-first_fr+1
@@ -593,9 +593,9 @@ def get_video_times(itf, from_zero=True, log=False):
 
     """
     try:
-        first_fr = get_first_frame(itf)
-        last_fr = get_last_frame(itf)
-        vid_fps = get_video_fps(itf)
+        first_fr = get_first_frame(itf, log=log)
+        last_fr = get_last_frame(itf, log=log)
+        vid_fps = get_video_fps(itf, log=log)
         offset_fr = first_fr if from_zero else 0
         start_t = np.float32(first_fr-offset_fr)/vid_fps
         end_t = np.float32(last_fr-offset_fr)/vid_fps
@@ -626,11 +626,11 @@ def get_analog_times(itf, from_zero=True, log=False):
 
     """
     try:
-        first_fr = get_first_frame(itf)
-        last_fr = get_last_frame(itf)
-        vid_fps = get_video_fps(itf)
-        analog_fps = get_analog_fps(itf)
-        av_ratio = get_analog_video_ratio(itf)
+        first_fr = get_first_frame(itf, log=log)
+        last_fr = get_last_frame(itf, log=log)
+        vid_fps = get_video_fps(itf, log=log)
+        analog_fps = get_analog_fps(itf, log=log)
+        av_ratio = get_analog_video_ratio(itf, log=log)
         offset_fr = first_fr if from_zero else 0
         start_t = np.float32(first_fr-offset_fr)/vid_fps
         end_t = np.float32(last_fr-offset_fr)/vid_fps+np.float32(av_ratio-1)/analog_fps
@@ -640,45 +640,7 @@ def get_analog_times(itf, from_zero=True, log=False):
         return t        
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
-
-# def get_video_times_subset(itf, sel_masks):
-#     """
-#     Return a subset of the video frame time array.
-
-#     Parameters
-#     ----------
-#     itf : win32com.client.CDispatch
-#         COM object of the C3Dserver.
-#     sel_masks : list or numpy array
-#         list or numpy array of boolean for boolean array indexing.
-
-#     Returns
-#     -------
-#     numpy array
-#         A subset of the video frame time array.
-
-#     """
-#     return get_video_times(itf)[sel_masks]
-
-# def get_analog_times_subset(itf, sel_masks):
-#     """
-#     Return a subset of the analog frame time array.
-
-#     Parameters
-#     ----------
-#     itf : win32com.client.CDispatch
-#         COM object of the C3Dserver.
-#     sel_masks : list or numpy array
-#         list or numpy array of boolean for boolean array indexing.
-
-#     Returns
-#     -------
-#     numpy array
-#         A subset of the analog frame time array.
-
-#     """
-#     return get_analog_times(itf)[sel_masks]
+        raise
 
 def get_marker_names(itf, log=False):
     """
@@ -703,19 +665,19 @@ def get_marker_names(itf, log=False):
         mkr_names = []
         idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
         if idx_pt_labels == -1:
-            if log: logger.debug('No POINT:LABELS parameter')
+            if log: logger.warning('No POINT:LABELS parameter')
             return None
         n_pt_labels = itf.GetParameterLength(idx_pt_labels)
         if n_pt_labels < 1:
-            if log: logger.debug('No item under POINT:LABELS parameter')
+            if log: logger.warning('No item under POINT:LABELS parameter')
             return None
         idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
         if idx_pt_used == -1:
-            if log: logger.debug('No POINT:USED parameter')
+            if log: logger.warning('No POINT:USED parameter')
             return None
         n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
         if n_pt_used < 1:
-            if log: logger.debug('POINT:USED value seems to be zero')
+            if log: logger.warning('POINT:USED value seems to be zero')
             return None
         for i in range(n_pt_labels):
             if i < n_pt_used:
@@ -750,19 +712,19 @@ def get_marker_index(itf, mkr_name, log=False):
     try:
         idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
         if idx_pt_labels == -1:
-            if log: logger.debug('No POINT:LABELS parameter')
+            if log: logger.warning('No POINT:LABELS parameter')
             return None
         n_pt_labels = itf.GetParameterLength(idx_pt_labels)
         if n_pt_labels < 1:
-            if log: logger.debug('No item under POINT:LABELS parameter')
+            if log: logger.warning('No item under POINT:LABELS parameter')
             return None
         idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
         if idx_pt_used == -1:
-            if log: logger.debug('No POINT:USED parameter')
+            if log: logger.warning('No POINT:USED parameter')
             return None
         n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
         if n_pt_used < 1:
-            if log: logger.debug('POINT:USED value seems to be zero')
+            if log: logger.warning('POINT:USED value seems to be zero')
             return None
         mkr_idx = -1
         for i in range(n_pt_labels):
@@ -772,7 +734,7 @@ def get_marker_index(itf, mkr_name, log=False):
                     mkr_idx = i
                     break  
         if mkr_idx == -1:
-            if log: logger.debug(f'No "{mkr_name}" marker exists')
+            if log: logger.warning(f'"{mkr_name}" does not exist')
         return mkr_idx
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -800,13 +762,14 @@ def get_marker_unit(itf, log=False):
     try:
         idx_pt_units = itf.GetParameterIndex('POINT', 'UNITS')
         if idx_pt_units == -1: 
-            if log: logger.debug('No POINT:UNITS parameter')
+            if log: logger.warning('No POINT:UNITS parameter')
             return None
         n_items = itf.GetParameterLength(idx_pt_units)
-        if n_items < 1: 
-            if log: logger.debug('No item under POINT:UNITS parameter')
+        if n_items != 1: 
+            if log: logger.warning('No proper item under POINT:UNITS parameter')
             return None
-        unit = itf.GetParameterValue(idx_pt_units, n_items-1)
+        # unit = itf.GetParameterValue(idx_pt_units, n_items-1)
+        unit = itf.GetParameterValue(idx_pt_units, 0)
         return unit
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -834,13 +797,14 @@ def get_marker_scale(itf, log=False):
     try:
         idx_pt_scale = itf.GetParameterIndex('POINT', 'SCALE')
         if idx_pt_scale == -1:
-            if log: logger.debug('No POINT:SCALE parameter')
+            if log: logger.warning('No POINT:SCALE parameter')
             return None
         n_items = itf.GetParameterLength(idx_pt_scale)
-        if n_items < 1:
-            if log: logger.debug('No item under POINT:SCALE parameter')
+        if n_items != 1:
+            if log: logger.warning('No proper item under POINT:SCALE parameter')
             return None
-        scale = np.float32(itf.GetParameterValue(idx_pt_scale, n_items-1))
+        # scale = np.float32(itf.GetParameterValue(idx_pt_scale, n_items-1))
+        scale = np.float32(itf.GetParameterValue(idx_pt_scale, 0))
         return scale
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -875,10 +839,14 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
         
     """
     try:
-        mkr_idx = get_marker_index(itf, mkr_name, log)
-        if mkr_idx == -1 or mkr_idx is None: return None
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-        if not fr_check: return None
+        mkr_idx = get_marker_index(itf, mkr_name, log=log)
+        if mkr_idx == -1 or mkr_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{mkr_name}"')
+            return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
+            return None
         n_frs = end_fr-start_fr+1
         mkr_data = np.full((n_frs, 4), np.nan, dtype=np.float32)
         for i in range(3):
@@ -926,12 +894,19 @@ def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=No
     
     """
     try:
-        mkr_idx = get_marker_index(itf, mkr_name, log)
-        if mkr_idx == -1 or mkr_idx is None: return None
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-        if not fr_check: return None
+        mkr_idx = get_marker_index(itf, mkr_name, log=log)
+        if mkr_idx == -1 or mkr_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{mkr_name}"')
+            return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
+            return None
         n_frs = end_fr-start_fr+1
-        mkr_scale = get_marker_scale(itf)
+        mkr_scale = get_marker_scale(itf, log=log)
+        if mkr_scale is None:
+            if log: logger.warning(f'Unable to get the marker scale factor')
+            return None
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
@@ -988,12 +963,19 @@ def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=N
     Ideally, get_marker_pos2() should return as same results as get_marker_pos() function.
     """
     try:
-        mkr_idx = get_marker_index(itf, mkr_name, log)
-        if mkr_idx == -1 or mkr_idx is None: return None
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-        if not fr_check: return None
+        mkr_idx = get_marker_index(itf, mkr_name, log=log)
+        if mkr_idx == -1 or mkr_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{mkr_name}"')
+            return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
+            return None
         n_frs = end_fr-start_fr+1
-        mkr_scale = get_marker_scale(itf)
+        mkr_scale = get_marker_scale(itf, log=log)
+        if mkr_scale is None:
+            if log: logger.warning(f'Unable to get the marker scale factor')
+            return None        
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
@@ -1039,10 +1021,14 @@ def get_marker_resid(itf, mkr_name, start_frame=None, end_frame=None, log=False)
 
     """
     try:
-        mkr_idx = get_marker_index(itf, mkr_name, log)
-        if mkr_idx == -1 or mkr_idx is None: return None
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-        if not fr_check: return None
+        mkr_idx = get_marker_index(itf, mkr_name, log=log)
+        if mkr_idx == -1 or mkr_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{mkr_name}"')
+            return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
+            return None
         mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
         return mkr_resid
     except pythoncom.com_error as err:
@@ -1070,15 +1056,15 @@ def get_analog_names(itf, log=False):
         sig_names = []
         idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
         if idx_anl_labels == -1:
-            if log: logger.debug('No ANALOG:LABELS parameter')
+            if log: logger.warning('No ANALOG:LABELS parameter')
             return None
         n_anl_labels = itf.GetParameterLength(idx_anl_labels)
         if n_anl_labels < 1:
-            if log: logger.debug('No item under ANALOG:LABELS parameter')
+            if log: logger.warning('No item under ANALOG:LABELS parameter')
             return None
         idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
         if idx_anl_used == -1:
-            if log: logger.debug('No ANALOG:USED parameter')
+            if log: logger.warning('No ANALOG:USED parameter')
             return None        
         n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
         for i in range(n_anl_labels):
@@ -1111,15 +1097,15 @@ def get_analog_index(itf, sig_name, log=False):
     try:
         idx_anl_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
         if idx_anl_labels == -1:
-            if log: logger.debug('No ANALOG:LABELS parameter')
+            if log: logger.warning('No ANALOG:LABELS parameter')
             return None
         n_anl_labels = itf.GetParameterLength(idx_anl_labels)
         if n_anl_labels < 1:
-            if log: logger.debug('No item under ANALOG:LABELS parameter')
+            if log: logger.warning('No item under ANALOG:LABELS parameter')
             return None
         idx_anl_used = itf.GetParameterIndex('ANALOG', 'USED')
         if idx_anl_used == -1:
-            if log: logger.debug('No ANALOG:USED parameter')
+            if log: logger.warning('No ANALOG:USED parameter')
             return None
         n_anl_used = itf.GetParameterValue(idx_anl_used, 0)    
         sig_idx = -1    
@@ -1128,13 +1114,13 @@ def get_analog_index(itf, sig_name, log=False):
                 tgt_name = itf.GetParameterValue(idx_anl_labels, i)
                 if tgt_name == sig_name:
                     sig_idx = i
-                    break        
+                    break
         if sig_idx == -1:
-            if log: logger.debug(f'No "{sig_name}" analog channel in the open file')
+            if log: logger.warning(f'"{sig_name}" does not exist')
         return sig_idx
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
+        raise
 
 def get_analog_gen_scale(itf, log=False):
     """
@@ -1158,13 +1144,14 @@ def get_analog_gen_scale(itf, log=False):
     try:
         par_idx = itf.GetParameterIndex('ANALOG', 'GEN_SCALE')
         if par_idx == -1:
-            if log: logger.debug('No ANALOG:GEN_SCALE parameter')
+            if log: logger.warning('No ANALOG:GEN_SCALE parameter')
             return None
         n_items = itf.GetParameterLength(par_idx)
-        if n_items < 1:
-            if log: logger.debug('No item under ANALOG:GEN_SCALE parameter')
+        if n_items != 1:
+            if log: logger.warning('No proper item under ANALOG:GEN_SCALE parameter')
             return None
-        gen_scale = np.float32(itf.GetParameterValue(par_idx, n_items-1))
+        # gen_scale = np.float32(itf.GetParameterValue(par_idx, n_items-1))
+        gen_scale = np.float32(itf.GetParameterValue(par_idx, 0))
         return gen_scale
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1225,11 +1212,13 @@ def get_analog_unit(itf, sig_name, log=False):
 
     """
     try:
-        sig_idx = get_analog_index(itf, sig_name, log)
-        if sig_idx == -1 or sig_idx is None: return None
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{sig_name}"')
+            return None
         par_idx = itf.GetParameterIndex('ANALOG', 'UNITS')
         if par_idx == -1:
-            if log: logger.debug('No ANALOG:UNITS parameter')
+            if log: logger.warning('No ANALOG:UNITS parameter')
             return None
         sig_unit = itf.GetParameterValue(par_idx, sig_idx)
         return sig_unit
@@ -1257,11 +1246,13 @@ def get_analog_scale(itf, sig_name, log=False):
 
     """
     try:
-        sig_idx = get_analog_index(itf, sig_name, log)
-        if sig_idx == -1 or sig_idx is None: return None
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{sig_name}"')
+            return None
         par_idx = itf.GetParameterIndex('ANALOG', 'SCALE')
         if par_idx == -1:
-            if log: logger.debug('No ANALOG:SCALE parameter')
+            if log: logger.warning('No ANALOG:SCALE parameter')
             return None
         sig_scale = np.float32(itf.GetParameterValue(par_idx, sig_idx))
         return sig_scale
@@ -1289,13 +1280,15 @@ def get_analog_offset(itf, sig_name, log=False):
 
     """
     try:
-        sig_idx = get_analog_index(itf, sig_name, log)
-        if sig_idx == -1 or sig_idx is None: return None
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{sig_name}"')
+            return None
         par_idx = itf.GetParameterIndex('ANALOG', 'OFFSET')
         if par_idx == -1:
-            if log: logger.debug('No ANALOG:OFFSET parameter')
+            if log: logger.warning('No ANALOG:OFFSET parameter')
             return None
-        sig_format = get_analog_format(itf)
+        sig_format = get_analog_format(itf, log=log)
         is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
         par_dtype = [np.int16, np.uint16][is_sig_unsigned]
         sig_offset = par_dtype(itf.GetParameterValue(par_idx, sig_idx))
@@ -1328,13 +1321,20 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, lo
 
     """
     try:
-        sig_idx = get_analog_index(itf, sig_name, log)
-        if sig_idx == -1 or sig_idx is None: return None
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-        if not fr_check: return None
-        sig_format = get_analog_format(itf)
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{sig_name}"')
+            return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
+            return None
+        sig_format = get_analog_format(itf, log=log)
         is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')        
-        mkr_scale = get_marker_scale(itf)
+        mkr_scale = get_marker_scale(itf, log=log)
+        if mkr_scale is None:
+            if log: logger.warning(f'Unable to get the marker scale factor')
+            return None        
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
@@ -1370,10 +1370,14 @@ def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, log=
 
     """
     try:
-        sig_idx = get_analog_index(itf, sig_name, log)
-        if sig_idx == -1 or sig_idx is None: return None
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-        if not fr_check: return None
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{sig_name}"')
+            return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
+            return None
         sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
         return sig
     except pythoncom.com_error as err:
@@ -1404,13 +1408,17 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log
 
     """
     try:
-        sig_idx = get_analog_index(itf, sig_name, log)
-        if sig_idx == -1 or sig_idx is None: return None
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log)
-        if not fr_check: return None
-        gen_scale = get_analog_gen_scale(itf)
-        sig_scale = get_analog_scale(itf, sig_name)
-        sig_offset = np.float32(get_analog_offset(itf, sig_name))
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            if log: logger.warning(f'Unable to get the index of "{sig_name}"')
+            return None
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
+            return None
+        gen_scale = get_analog_gen_scale(itf, log=log)
+        sig_scale = get_analog_scale(itf, sig_name, log=log)
+        sig_offset = np.float32(get_analog_offset(itf, sig_name, log=log))
         sig = (np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
         return sig
     except pythoncom.com_error as err:
@@ -1465,7 +1473,7 @@ def get_dict_groups(itf, tgt_grp_names=None, log=False):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
-    tgt_grp_names: str or tuple, optional
+    tgt_grp_names: list or tuple, optional
         Target group names to extract. The default is None.
     log : bool, optional
         Whether to write logs or not. The default is False.        
@@ -1501,7 +1509,7 @@ def get_dict_groups(itf, tgt_grp_names=None, log=False):
             par_dim = [itf.GetParameterDimension(i, j) for j in range(par_num_dim)]
             par_data = []
             if grp_name=='ANALOG' and par_name=='OFFSET':
-                sig_format = get_analog_format(itf)
+                sig_format = get_analog_format(itf, log=log)
                 is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
                 pre_dtype = [np.int16, np.uint16][is_sig_unsigned]
                 for j in range(par_len):
@@ -1552,7 +1560,7 @@ def get_group_params(itf, grp_name, par_names, log=False):
         for name in par_names:
             par_idx = itf.GetParameterIndex(grp_name, name)
             if par_idx == -1:
-                if log: logger.warning(f'There is no "{name}" parameter under "{grp_name}" group')
+                if log: logger.warning(f'No "{name}" parameter under "{grp_name}" group')
                 continue
             par_name = itf.GetParameterName(par_idx)
             par_len = itf.GetParameterLength(par_idx)
@@ -1599,7 +1607,7 @@ def get_fp_params(itf, log=False):
     try:
         grp_name = 'FORCE_PLATFORM'
         par_names = ['TYPE', 'USED', 'ORIGIN', 'CORNERS', 'CHANNEL']
-        return get_group_params(itf, grp_name, par_names, log)
+        return get_group_params(itf, grp_name, par_names, log=log)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
@@ -1638,31 +1646,31 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
 
     """
     try:
-        start_fr = get_first_frame(itf)
-        end_fr = get_last_frame(itf)    
+        start_fr = get_first_frame(itf, log=log)
+        end_fr = get_last_frame(itf, log=log) 
         n_frs = end_fr-start_fr+1
         idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
         if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS1')
         if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS2')
         if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS3')
         if idx_pt_labels == -1:
-            if log: logger.debug('No POINT:LABELS parameter')
+            if log: logger.warning('No POINT:LABELS parameter')
             return None
         n_pt_labels = itf.GetParameterLength(idx_pt_labels)
         if n_pt_labels < 1:
-            if log: logger.debug('No item under POINT:LABELS parameter')
+            if log: logger.warning('No item under POINT:LABELS parameter')
             return None
         idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
         if idx_pt_used == -1:
-            if log: logger.debug('No POINT:USED parameter')
+            if log: logger.warning('No POINT:USED parameter')
             return None        
         n_pt_used = itf.GetParameterValue(idx_pt_used, 0)
         if n_pt_used < 1:
-            if log: logger.debug('POINT:USED is zero!')
+            if log: logger.warning('POINT:USED is zero')
             return None
         idx_pt_desc = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
         if idx_pt_desc == -1:
-            if log: logger.debug('No POINT:DESCRIPTIONS parameter')
+            if log: logger.warning('No POINT:DESCRIPTIONS parameter')
             n_pt_desc = 0
         else:
             n_pt_desc = itf.GetParameterLength(idx_pt_desc)
@@ -1713,8 +1721,8 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
         if desc:
             if idx_pt_desc != -1:
                 dict_pts.update({'DESCRIPTIONS': np.array(mkr_descs, dtype=str)})
-        if frame: dict_pts.update({'FRAME': get_video_frames(itf)})
-        if time: dict_pts.update({'TIME': get_video_times(itf)})
+        if frame: dict_pts.update({'FRAME': get_video_frames(itf, log=log)})
+        if time: dict_pts.update({'TIME': get_video_times(itf, log=log)})
         return dict_pts
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1746,46 +1754,46 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
 
     """
     try:
-        start_fr = get_first_frame(itf)
-        end_fr = get_last_frame(itf)
+        start_fr = get_first_frame(itf, log=log)
+        end_fr = get_last_frame(itf, log=log)
         idx_force_used = itf.GetParameterIndex('FORCE_PLATFORM', 'USED')
         if idx_force_used == -1: 
-            if log: logger.debug(f'FORCE_PLATFORM:USED parameter does not exist')
+            if log: logger.warning(f'FORCE_PLATFORM:USED parameter does not exist')
             return None
         n_force_used = itf.GetParameterValue(idx_force_used, 0)
         if n_force_used < 1:
-            if log: logger.debug(f'FORCE_PLATFORM:USED is zero')
+            if log: logger.warning(f'FORCE_PLATFORM:USED is zero')
             return None
         idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
         if idx_force_chs == -1: 
-            if log: logger.debug(f'FORCE_PLATFORM:CHANNEL parameter does not exist')
+            if log: logger.warning(f'FORCE_PLATFORM:CHANNEL parameter does not exist')
             return None
         idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
         if idx_analog_labels == -1:
-            if log: logger.debug('No ANALOG:LABELS parameter')
+            if log: logger.warning('No ANALOG:LABELS parameter')
             return None       
         idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
         if idx_analog_scale == -1:
-            if log: logger.debug('No ANALOG:SCALE parameter')
+            if log: logger.warning('No ANALOG:SCALE parameter')
             return None     
         idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
         if idx_analog_offset == -1:
-            if log: logger.debug('No ANALOG:OFFSET parameter')
+            if log: logger.warning('No ANALOG:OFFSET parameter')
             return None
         idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
         if idx_analog_units == -1:
-            if log: logger.debug('No ANALOG:UNITS parameter')
+            if log: logger.warning('No ANALOG:UNITS parameter')
             n_analog_units = 0
         else:
             n_analog_units = itf.GetParameterLength(idx_analog_units)
         idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
         if idx_analog_desc == -1:
-            if log: logger.debug('No ANALOG:DESCRIPTIONS parameter')
+            if log: logger.warning('No ANALOG:DESCRIPTIONS parameter')
             n_analog_desc = 0
         else:
             n_analog_desc = itf.GetParameterLength(idx_analog_desc)
-        gen_scale = get_analog_gen_scale(itf)
-        sig_format = get_analog_format(itf)
+        gen_scale = get_analog_gen_scale(itf, log=log)
+        sig_format = get_analog_format(itf, log=log)
         is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
         offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
         dict_forces = {}
@@ -1822,8 +1830,8 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
         if desc:
             if idx_analog_desc != -1:
                 dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
-        if frame: dict_forces.update({'FRAME': get_analog_frames(itf)})
-        if time: dict_forces.update({'TIME': get_analog_times(itf)})
+        if frame: dict_forces.update({'FRAME': get_analog_frames(itf, log=log)})
+        if time: dict_forces.update({'TIME': get_analog_times(itf, log=log)})
         return dict_forces
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1857,12 +1865,12 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
 
     """
     try:
-        start_fr = get_first_frame(itf)
-        end_fr = get_last_frame(itf)
+        start_fr = get_first_frame(itf, log=log)
+        end_fr = get_last_frame(itf, log=log)
         n_force_chs = 0
         idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
         if idx_force_chs == -1: 
-            if log: logger.debug(f'FORCE_PLATFORM:CHANNEL parameter does not exist!')
+            if log: logger.warning(f'FORCE_PLATFORM:CHANNEL parameter does not exist')
             n_force_chs = 0
         else:
             n_force_chs = itf.GetParameterLength(idx_force_chs)
@@ -1873,42 +1881,42 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
                 force_ch_idx.append(ch_idx)
         idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
         if idx_analog_labels == -1:
-            if log: logger.debug('No ANALOG:LABELS parameter!')
+            if log: logger.warning('No ANALOG:LABELS parameter')
             return None
         n_analog_labels = itf.GetParameterLength(idx_analog_labels)
         if n_analog_labels < 1:
-            if log: logger.debug('No item under ANALOG:LABELS parameter!')
+            if log: logger.warning('No item under ANALOG:LABELS parameter')
             return None    
         idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
         if idx_analog_used == -1:
-            if log: logger.debug('No ANALOG:USED parameter!')
+            if log: logger.warning('No ANALOG:USED parameter')
             return None
         n_analog_used = itf.GetParameterValue(idx_analog_used, 0)
         if n_analog_used < 1:
-            if log: logger.debug(f'ANALOG:USED is zero!')
+            if log: logger.warning(f'ANALOG:USED is zero')
             return None    
         idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
         if idx_analog_scale == -1:
-            if log: logger.debug('No ANALOG:SCALE parameter!')
+            if log: logger.warning('No ANALOG:SCALE parameter')
             return None       
         idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
         if idx_analog_offset == -1:
-            if log: logger.debug('No ANALOG:OFFSET parameter!')
+            if log: logger.warning('No ANALOG:OFFSET parameter')
             return None
         idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
         if idx_analog_units == -1:
-            if log: logger.debug('No ANALOG:UNITS parameter!')
+            if log: logger.warning('No ANALOG:UNITS parameter')
             n_analog_units = 0
         else:
             n_analog_units = itf.GetParameterLength(idx_analog_units)
         idx_analog_desc = itf.GetParameterIndex('ANALOG', 'DESCRIPTIONS')
         if idx_analog_desc == -1:
-            if log: logger.debug('No ANALOG:DESCRIPTIONS parameter!')
+            if log: logger.warning('No ANALOG:DESCRIPTIONS parameter')
             n_analog_desc = 0
         else:
             n_analog_desc = itf.GetParameterLength(idx_analog_desc)
-        gen_scale = get_analog_gen_scale(itf)
-        sig_format = get_analog_format(itf)
+        gen_scale = get_analog_gen_scale(itf, log=log)
+        sig_format = get_analog_format(itf, log=log)
         is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
         offset_dtype = [np.int16, np.uint16][is_sig_unsigned]    
         dict_analogs = {}
@@ -1945,8 +1953,8 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
         if desc:
             if idx_analog_desc != -1:
                 dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
-        if frame: dict_analogs.update({'FRAME': get_analog_frames(itf)})
-        if time: dict_analogs.update({'TIME': get_analog_times(itf)})
+        if frame: dict_analogs.update({'FRAME': get_analog_frames(itf, log=log)})
+        if time: dict_analogs.update({'TIME': get_analog_times(itf, log=log)})
         return dict_analogs
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1974,19 +1982,27 @@ def change_marker_name(itf, mkr_name_old, mkr_name_new, log=False):
 
     """
     try:
-        mkr_idx = get_marker_index(itf, mkr_name_old, log)
-        if mkr_idx == -1 or mkr_idx is None: return False
+        mkr_idx = get_marker_index(itf, mkr_name_old, log=log)
+        if mkr_idx == -1 or mkr_idx is None:
+            err_msg = f'Unable to get the index of "{mkr_name_old}"'
+            raise ValueError(err_msg)
         par_idx = itf.GetParameterIndex('POINT', 'LABELS')
         if par_idx == -1:
-            if log: logger.debug('No POINT:LABELS parameter')
-            return False
+            err_msg = 'No POINT:LABELS parameter'
+            raise RuntimeError(err_msg)
         ret = itf.SetParameterValue(par_idx, mkr_idx, mkr_name_new)
         if log:
             logger.info(f'Changing the marker name from "{mkr_name_old}" to "{mkr_name_new}": {["FAILURE", "SUCCESS"][ret]}')
         return [False, True][ret]
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise        
 
 def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
     """
@@ -2010,19 +2026,27 @@ def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
 
     """
     try:
-        sig_idx = get_analog_index(itf, sig_name_old, log)
-        if sig_idx == -1 or sig_idx is None: return False
+        sig_idx = get_analog_index(itf, sig_name_old, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            err_msg = f'Unable to get the index of "{sig_name_old}"'
+            raise ValueError(err_msg)
         par_idx = itf.GetParameterIndex('ANALOG', 'LABELS')
         if par_idx == -1:
-            if log: logger.debug('No ANALOG:LABELS parameter')
-            return False        
+            err_msg = 'No ANALOG:LABELS parameter'
+            raise RuntimeError(err_msg)
         ret = itf.SetParameterValue(par_idx, sig_idx, sig_name_new)
         if log:
             logger.info(f'Changing the signal name from "{sig_name_old}" to "{sig_name_new}": {["FAILURE", "SUCCESS"][ret]}')    
         return [False, True][ret]
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise
 
 def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=False):
     """
@@ -2053,15 +2077,15 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
     """
     try:
         if log: logger.debug(f'Start adding a new "{mkr_name}" marker ...')
-        start_fr = get_first_frame(itf)
-        n_frs = get_num_frames(itf)
+        start_fr = get_first_frame(itf, log=log)
+        n_frs = get_num_frames(itf, log=log)
         if not (mkr_coords.ndim == 2 and mkr_coords.shape[0] == n_frs and mkr_coords.shape[1] == 3):
-            if log: logger.error('The dimension of the input marker coordinates are not valid')
-            return False
+            err_msg = 'The dimension of the input marker coordinates are not valid'
+            raise ValueError(err_msg)
         if mkr_resid is not None:
             if not (mkr_resid.ndim == 1 and mkr_resid.shape[0] == n_frs):
-                if log: logger.error('The dimension of the input marker residuals are not valid')
-                return False
+                err_msg = 'The dimension of the input marker residuals are not valid'
+                raise ValueError(err_msg)
         ret = 0
         # Check the value 'POINT:USED'
         par_idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
@@ -2089,11 +2113,14 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
         # Add a marker
         new_mkr_idx = itf.AddMarker()
         n_mkrs = itf.GetNumber3DPoints()
-        mkr_null_mask = np.any(np.isnan(mkr_coords), axis=1)
+        mkr_null_masks = np.any(np.isnan(mkr_coords), axis=1)
         mkr_resid_adjusted = np.zeros((n_frs, ), dtype=np.float32) if mkr_resid is None else np.array(mkr_resid, dtype=np.float32)
-        mkr_resid_adjusted[mkr_null_mask] = -1
+        mkr_resid_adjusted[mkr_null_masks] = -1
         mkr_masks = np.array(['0000000']*n_frs, dtype = np.string_)
-        mkr_scale = get_marker_scale(itf)
+        mkr_scale = get_marker_scale(itf, log=log)
+        if mkr_scale is None:
+            err_msg = f'Unable to get the marker scale factor'
+            raise RuntimeError(err_msg)        
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
@@ -2128,7 +2155,13 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
         return [False, True][ret]
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise        
 
 def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, sig_gain=0, sig_desc=None, log=False):
     """
@@ -2165,9 +2198,9 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
     """
     try:
         if log: logger.debug(f'Start adding a new "{sig_name}" analog channel ...')
-        start_fr = get_first_frame(itf)
-        n_frs = get_num_frames(itf)
-        av_ratio = get_analog_video_ratio(itf)
+        start_fr = get_first_frame(itf, log=log)
+        n_frs = get_num_frames(itf, log=log)
+        av_ratio = get_analog_video_ratio(itf, log=log)
         if sig_value.ndim!=1 or sig_value.shape[0]!=(n_frs*av_ratio):
             if log: logger.error('The dimension of the input is not compatible')
             return False
@@ -2200,7 +2233,7 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
         n_idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
         ret = itf.AddParameterData(n_idx_analog_offset, 1)
         n_cnt_analog_offset = itf.GetParameterLength(n_idx_analog_offset)
-        sig_format = get_analog_format(itf)
+        sig_format = get_analog_format(itf, log=log)
         is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
         sig_offset_comtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_sig_unsigned]
         sig_offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
@@ -2220,7 +2253,7 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
         # Create an analog channel
         n_idx_new_analog_ch = itf.AddAnalogChannel()
         n_cnt_analog_chs = itf.GetAnalogChannels()
-        gen_scale = get_analog_gen_scale(itf)
+        gen_scale = get_analog_gen_scale(itf, log=log)
         sig_value_unscaled = np.asarray(sig_value, dtype=np.float32)/(np.float32(sig_scale)*gen_scale)+np.float32(sig_offset_dtype(sig_offset))
         ret = itf.SetAnalogDataEx(n_idx_new_analog_ch, start_fr, win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled))
         # Increase the value 'ANALOG:USED' by the 1
@@ -2232,7 +2265,13 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
         return [False, True][ret]
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise        
 
 def delete_frames(itf, start_frame, num_frames, log=False):
     """
@@ -2256,17 +2295,20 @@ def delete_frames(itf, start_frame, num_frames, log=False):
 
     """
     try:
-        if start_frame < get_first_frame(itf):
-            if log: logger.error(f'"start_frame" number should be equal or greater than {get_first_frame(itf)}')
-            return None
-        elif start_frame >= get_last_frame(itf):
-            if log: logger.error(f'"start_frame" number should be less than {get_last_frame(itf)}')
-            return None
+        if start_frame < get_first_frame(itf, log=log):
+            err_msg = f'"start_frame" number should be equal or greater than {get_first_frame(itf)}'
+            raise ValueError(err_msg)
+        elif start_frame >= get_last_frame(itf, log=log):
+            err_msg = f'"start_frame" number should be less than {get_last_frame(itf)}'
+            raise ValueError(err_msg)
         n_frs_updated = itf.DeleteFrames(start_frame, num_frames)
         return n_frs_updated
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise        
 
 def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
     """
@@ -2292,17 +2334,22 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
 
     """
     try:
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log=log)
         if not fr_check:
-            if log: logger.error('Given "start_frame" is not proper')
-            return False
+            err_msg = 'Given "start_frame" is not proper'
+            raise ValueError(err_msg)
         n_frs = end_fr-start_fr+1
         if mkr_coords.ndim != 2 or mkr_coords.shape[0] != n_frs:
-            if log: logger.error('The dimension of the input is not compatible')
-            return False    
-        mkr_idx = get_marker_index(itf, mkr_name, log)
-        if mkr_idx == -1 or mkr_idx is None: return False
-        mkr_scale = get_marker_scale(itf)
+            err_msg = 'The dimension of the input is not compatible'
+            raise ValueError(err_msg)    
+        mkr_idx = get_marker_index(itf, mkr_name, log=log)
+        if mkr_idx == -1 or mkr_idx is None:
+            err_msg = f'Unable to get the index of "{mkr_name}"'
+            raise ValueError(err_msg)
+        mkr_scale = get_marker_scale(itf, log=log)
+        if mkr_scale is None:
+            err_msg = f'Unable to get the marker scale factor'
+            raise RuntimeError(err_msg)
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
@@ -2326,7 +2373,13 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
         return [False, True][ret]
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise    
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise        
     
 def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
     """
@@ -2352,16 +2405,18 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
 
     """
     try:
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log)
-        if not fr_check: 
-            if log: logger.error('Given "start_frame" is not proper')
-            return False
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log=log)
+        if not fr_check:
+            err_msg = 'Given "start_frame" is not proper'
+            raise ValueError(err_msg)        
         n_frs = end_fr-start_fr+1
         if mkr_resid.ndim != 1 or mkr_resid.shape[0] != n_frs:
-            if log: logger.error('The dimension of the input is not compatible')
-            return False
-        mkr_idx = get_marker_index(itf, mkr_name, log)
-        if mkr_idx == -1 or mkr_idx is None: return False
+            err_msg = 'The dimension of the input is not compatible'
+            raise ValueError(err_msg)        
+        mkr_idx = get_marker_index(itf, mkr_name, log=log)
+        if mkr_idx == -1 or mkr_idx is None:
+            err_msg = f'Unable to get the index of "{mkr_name}"'
+            raise ValueError(err_msg)        
         dtype = pythoncom.VT_R4
         dtype_arr = pythoncom.VT_ARRAY|dtype
         variant = win32.VARIANT(dtype_arr, mkr_resid)
@@ -2374,6 +2429,9 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise        
 
 def recover_marker_rel(itf, tgt_mkr_name, cl_mkr_names, log=False):
     """
@@ -2413,77 +2471,90 @@ def recover_marker_rel(itf, tgt_mkr_name, cl_mkr_names, log=False):
     .. [1] https://github.com/mkjung99/gapfill
     
     """
-    if log: logger.debug(f'Start recovery of {tgt_mkr_name} ...')
-    n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
-    tgt_mkr_coords = tgt_mkr_data[:,0:3]
-    tgt_mkr_resid = tgt_mkr_data[:,3]
-    tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
-    n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
-    if n_tgt_mkr_valid_frs == 0:
-        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: no valid target marker frame!')
-        return False, n_tgt_mkr_valid_frs
-    if n_tgt_mkr_valid_frs == n_total_frs:
-        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: all target marker frames valid!')
-        return False, n_tgt_mkr_valid_frs
-    dict_cl_mkr_coords = {}
-    dict_cl_mkr_valid = {}
-    cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
-    for mkr in cl_mkr_names:
-        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
-        dict_cl_mkr_coords[mkr] = mkr_data[:, 0:3]
-        dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
-        cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
-    all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
-    if not np.any(all_mkr_valid_mask):
-        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: no common valid frame among markers!')
-        return False, n_tgt_mkr_valid_frs
-    cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
-    if not np.any(cl_mkr_only_valid_mask):
-        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: cluster markers not helpful!')
-        return False, n_tgt_mkr_valid_frs
-    all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
-    cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
-    p0 = dict_cl_mkr_coords[cl_mkr_names[0]]
-    p1 = dict_cl_mkr_coords[cl_mkr_names[1]]
-    p2 = dict_cl_mkr_coords[cl_mkr_names[2]] 
-    vec0 = p1-p0
-    vec1 = p2-p0
-    vec0_norm = np.linalg.norm(vec0, axis=1, keepdims=True)
-    vec1_norm = np.linalg.norm(vec1, axis=1, keepdims=True)
-    vec0_unit = np.divide(vec0, vec0_norm, where=(vec0_norm!=0))
-    vec1_unit = np.divide(vec1, vec1_norm, where=(vec1_norm!=0))
-    vec2 = np.cross(vec0_unit, vec1_unit)
-    vec2_norm = np.linalg.norm(vec2, axis=1, keepdims=True)
-    vec2_unit = np.divide(vec2, vec2_norm, where=(vec2_norm!=0))
-    vec_z = vec2_unit
-    vec_x = vec0_unit
-    vec_y = np.cross(vec_z, vec_x)
-    mat_rot = np.array([vec_x.T, vec_y.T, vec_z.T]).T
-    tgt_mkr_coords_rel = np.einsum('ij,ijk->ik', (tgt_mkr_coords-p0)[all_mkr_valid_mask], mat_rot[all_mkr_valid_mask])
-    tgt_mkr_coords_recovered = np.zeros((cl_mkr_only_valid_frs.size, 3), dtype=np.float32)
-    for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
-        search_idx = np.searchsorted(all_mkr_valid_frs, fr)
-        if search_idx>=all_mkr_valid_frs.shape[0] or search_idx==0:
-            tgt_coords_rel_idx = (np.abs(all_mkr_valid_frs-fr)).argmin()
-            tgt_coords_rel = tgt_mkr_coords_rel[tgt_coords_rel_idx]
-        else:
-            idx1 = search_idx
-            idx0 = search_idx-1
-            fr1 = all_mkr_valid_frs[idx1]
-            fr0 = all_mkr_valid_frs[idx0]
-            a = np.float32(fr-fr0)
-            b = np.float32(fr1-fr)
-            tgt_coords_rel = (b*tgt_mkr_coords_rel[idx0]+a*tgt_mkr_coords_rel[idx1])/(a+b)
-        tgt_mkr_coords_recovered[idx] = p0[fr]+np.dot(mat_rot[fr], tgt_coords_rel)
-    tgt_mkr_coords[cl_mkr_only_valid_mask] = tgt_mkr_coords_recovered
-    tgt_mkr_resid[cl_mkr_only_valid_mask] = 0.0
-    update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-    update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
-    n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-    if log: logger.info(f'Recovery of {tgt_mkr_name} is finished.')
-    return True, n_tgt_mkr_valid_frs_updated
-
+    try:
+        if log: logger.debug(f'Start recovery of "{tgt_mkr_name}" ...')
+        n_total_frs = get_num_frames(itf, log=log)
+        tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
+        if tgt_mkr_data is None:
+            err_msg = f'Unable to get the information of "{tgt_mkr_name}"'
+            raise ValueError(err_msg)            
+        tgt_mkr_coords = tgt_mkr_data[:,0:3]
+        tgt_mkr_resid = tgt_mkr_data[:,3]
+        tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
+        n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
+        if n_tgt_mkr_valid_frs == 0:
+            if log: logger.info(f'Recovery of "{tgt_mkr_name}" skipped: no valid target marker frame')
+            return False, n_tgt_mkr_valid_frs
+        if n_tgt_mkr_valid_frs == n_total_frs:
+            if log: logger.info(f'Recovery of "{tgt_mkr_name}" skipped: all target marker frames valid')
+            return False, n_tgt_mkr_valid_frs
+        dict_cl_mkr_coords = {}
+        dict_cl_mkr_valid = {}
+        cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
+        for mkr in cl_mkr_names:
+            mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
+            if mkr_data is None:
+                err_msg = f'Unable to get the information of "{mkr}"'
+                raise ValueError(err_msg)
+            dict_cl_mkr_coords[mkr] = mkr_data[:, 0:3]
+            dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
+            cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
+        all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
+        if not np.any(all_mkr_valid_mask):
+            if log: logger.info(f'Recovery of "{tgt_mkr_name}" skipped: no common valid frame among markers')
+            return False, n_tgt_mkr_valid_frs
+        cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
+        if not np.any(cl_mkr_only_valid_mask):
+            if log: logger.info(f'Recovery of "{tgt_mkr_name}" skipped: cluster markers not helpful')
+            return False, n_tgt_mkr_valid_frs
+        all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
+        cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
+        p0 = dict_cl_mkr_coords[cl_mkr_names[0]]
+        p1 = dict_cl_mkr_coords[cl_mkr_names[1]]
+        p2 = dict_cl_mkr_coords[cl_mkr_names[2]] 
+        vec0 = p1-p0
+        vec1 = p2-p0
+        vec0_norm = np.linalg.norm(vec0, axis=1, keepdims=True)
+        vec1_norm = np.linalg.norm(vec1, axis=1, keepdims=True)
+        vec0_unit = np.divide(vec0, vec0_norm, where=(vec0_norm!=0))
+        vec1_unit = np.divide(vec1, vec1_norm, where=(vec1_norm!=0))
+        vec2 = np.cross(vec0_unit, vec1_unit)
+        vec2_norm = np.linalg.norm(vec2, axis=1, keepdims=True)
+        vec2_unit = np.divide(vec2, vec2_norm, where=(vec2_norm!=0))
+        vec_z = vec2_unit
+        vec_x = vec0_unit
+        vec_y = np.cross(vec_z, vec_x)
+        mat_rot = np.array([vec_x.T, vec_y.T, vec_z.T]).T
+        tgt_mkr_coords_rel = np.einsum('ij,ijk->ik', (tgt_mkr_coords-p0)[all_mkr_valid_mask], mat_rot[all_mkr_valid_mask])
+        tgt_mkr_coords_recovered = np.zeros((cl_mkr_only_valid_frs.size, 3), dtype=np.float32)
+        for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
+            search_idx = np.searchsorted(all_mkr_valid_frs, fr)
+            if search_idx>=all_mkr_valid_frs.shape[0] or search_idx==0:
+                tgt_coords_rel_idx = (np.abs(all_mkr_valid_frs-fr)).argmin()
+                tgt_coords_rel = tgt_mkr_coords_rel[tgt_coords_rel_idx]
+            else:
+                idx1 = search_idx
+                idx0 = search_idx-1
+                fr1 = all_mkr_valid_frs[idx1]
+                fr0 = all_mkr_valid_frs[idx0]
+                a = np.float32(fr-fr0)
+                b = np.float32(fr1-fr)
+                tgt_coords_rel = (b*tgt_mkr_coords_rel[idx0]+a*tgt_mkr_coords_rel[idx1])/(a+b)
+            tgt_mkr_coords_recovered[idx] = p0[fr]+np.dot(mat_rot[fr], tgt_coords_rel)
+        tgt_mkr_coords[cl_mkr_only_valid_mask] = tgt_mkr_coords_recovered
+        tgt_mkr_resid[cl_mkr_only_valid_mask] = 0.0
+        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+        update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+        n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
+        if log: logger.info(f'Recovery of {tgt_mkr_name} is finished')
+        return True, n_tgt_mkr_valid_frs_updated
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise    
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+        
 def recover_marker_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
     """
     Recover the trajectory of a marker by rbt(rigid body transformation) using a group (cluster) markers.
@@ -2519,89 +2590,102 @@ def recover_marker_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
     .. [1] https://github.com/mkjung99/gapfill
     
     """
-    if log: logger.debug(f'Start recovery of {tgt_mkr_name} ...')
-    n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
-    tgt_mkr_coords = tgt_mkr_data[:,0:3]
-    tgt_mkr_resid = tgt_mkr_data[:,3]
-    tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
-    n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
-    if n_tgt_mkr_valid_frs == 0:
-        if log: logger.info(f'Recovery of {tgt_mkr_name} skipped: no valid target marker frame!')
-        return False, n_tgt_mkr_valid_frs
-    if n_tgt_mkr_valid_frs == n_total_frs:
-        if log: logger.info('Recovery of {tgt_mkr_name} skipped: all target marker frames valid!')
-        return False, n_tgt_mkr_valid_frs    
-    dict_cl_mkr_coords = {}
-    dict_cl_mkr_valid = {}
-    cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
-    for mkr in cl_mkr_names:
-        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
-        dict_cl_mkr_coords[mkr] = mkr_data[:,0:3]
-        dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
-        cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
-    all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
-    if not np.any(all_mkr_valid_mask):
-        if log: logger.info('Recovery of {tgt_mkr_name} skipped: no common valid frame among markers!')
-        return False, n_tgt_mkr_valid_frs
-    cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
-    if not np.any(cl_mkr_only_valid_mask):
-        if log: logger.info('Recovery of {tgt_mkr_name} skipped: cluster markers not helpful!')
-        return False, n_tgt_mkr_valid_frs
-    all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
-    cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
-    dict_cl_mkr_dist = {}
-    for mkr_name in cl_mkr_names:
-        vec_diff = dict_cl_mkr_coords[mkr_name]-tgt_mkr_coords
-        dict_cl_mkr_dist.update({mkr_name: np.nanmean(np.linalg.norm(vec_diff, axis=1))})
-    cl_mkr_dist_sorted = sorted(dict_cl_mkr_dist.items(), key=lambda kv: kv[1])
-    p0 = dict_cl_mkr_coords[cl_mkr_dist_sorted[0][0]]
-    p1 = dict_cl_mkr_coords[cl_mkr_dist_sorted[1][0]]
-    p2 = dict_cl_mkr_coords[cl_mkr_dist_sorted[2][0]]
-    p3 = tgt_mkr_coords
-    vec0 = p1-p0
-    vec1 = p2-p0
-    vec0_norm = np.linalg.norm(vec0, axis=1, keepdims=True)
-    vec1_norm = np.linalg.norm(vec1, axis=1, keepdims=True)
-    vec0_unit = np.divide(vec0, vec0_norm, where=(vec0_norm!=0))
-    vec1_unit = np.divide(vec1, vec1_norm, where=(vec1_norm!=0))
-    vec2 = np.cross(vec0_unit, vec1_unit)
-    vec2_norm = np.linalg.norm(vec2, axis=1, keepdims=True)
-    vec2_unit = np.divide(vec2, vec2_norm, where=(vec2_norm!=0))
-    vec3 = p3-p0
-    vec_z = vec2_unit
-    vec_x = vec0_unit
-    vec_y = np.cross(vec_z, vec_x)
-    mat_rot = np.array([vec_x.T, vec_y.T, vec_z.T]).T
-    for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
-        search_idx = np.searchsorted(all_mkr_valid_frs, fr)
-        if search_idx == 0:
-            fr0 = all_mkr_valid_frs[0]
-            rot_fr0_to_fr = np.dot(mat_rot[fr], mat_rot[fr0].T)
-            vt_fr0 = np.dot(rot_fr0_to_fr, vec3[fr0])
-            vc = vt_fr0
-        elif search_idx >= all_mkr_valid_frs.shape[0]:
-            fr1 = all_mkr_valid_frs[all_mkr_valid_frs.shape[0]-1]
-            rot_fr1_to_fr = np.dot(mat_rot[fr], mat_rot[fr1].T)
-            vt_fr1 = np.dot(rot_fr1_to_fr, vec3[fr1])
-            vc = vt_fr1
-        else:
-            fr0 = all_mkr_valid_frs[search_idx-1]
-            fr1 = all_mkr_valid_frs[search_idx]
-            rot_fr0_to_fr = np.dot(mat_rot[fr], mat_rot[fr0].T)
-            rot_fr1_to_fr = np.dot(mat_rot[fr], mat_rot[fr1].T)
-            vt_fr0 = np.dot(rot_fr0_to_fr, vec3[fr0])
-            vt_fr1 = np.dot(rot_fr1_to_fr, vec3[fr1])
-            a = np.float32(fr-fr0)
-            b = np.float32(fr1-fr)
-            vc = (b*vt_fr0+a*vt_fr1)/(a+b)
-        tgt_mkr_coords[fr] = p0[fr]+vc
-        tgt_mkr_resid[fr] = 0.0
-    update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-    update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
-    n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-    if log: logger.info(f'Recovery of {tgt_mkr_name} is finished.')
-    return True, n_tgt_mkr_valid_frs_updated
+    try:
+        if log: logger.debug(f'Start recovery of "{tgt_mkr_name}" ...')
+        n_total_frs = get_num_frames(itf, log=log)
+        tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
+        if tgt_mkr_data is None:
+            err_msg = f'Unable to get the information of "{tgt_mkr_name}"'
+            raise ValueError(err_msg)        
+        tgt_mkr_coords = tgt_mkr_data[:,0:3]
+        tgt_mkr_resid = tgt_mkr_data[:,3]
+        tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
+        n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
+        if n_tgt_mkr_valid_frs == 0:
+            if log: logger.info(f'Recovery of "{tgt_mkr_name}" skipped: no valid target marker frame')
+            return False, n_tgt_mkr_valid_frs
+        if n_tgt_mkr_valid_frs == n_total_frs:
+            if log: logger.info('Recovery of "{tgt_mkr_name}" skipped: all target marker frames valid')
+            return False, n_tgt_mkr_valid_frs    
+        dict_cl_mkr_coords = {}
+        dict_cl_mkr_valid = {}
+        cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
+        for mkr in cl_mkr_names:
+            mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
+            if mkr_data is None:
+                err_msg = f'Unable to get the information of "{mkr}"'
+                raise ValueError(err_msg)
+            dict_cl_mkr_coords[mkr] = mkr_data[:,0:3]
+            dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
+            cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
+        all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
+        if not np.any(all_mkr_valid_mask):
+            if log: logger.info('Recovery of "{tgt_mkr_name}" skipped: no common valid frame among markers')
+            return False, n_tgt_mkr_valid_frs
+        cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
+        if not np.any(cl_mkr_only_valid_mask):
+            if log: logger.info('Recovery of "{tgt_mkr_name}" skipped: cluster markers not helpful')
+            return False, n_tgt_mkr_valid_frs
+        all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
+        cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
+        dict_cl_mkr_dist = {}
+        for mkr_name in cl_mkr_names:
+            vec_diff = dict_cl_mkr_coords[mkr_name]-tgt_mkr_coords
+            dict_cl_mkr_dist.update({mkr_name: np.nanmean(np.linalg.norm(vec_diff, axis=1))})
+        cl_mkr_dist_sorted = sorted(dict_cl_mkr_dist.items(), key=lambda kv: kv[1])
+        p0 = dict_cl_mkr_coords[cl_mkr_dist_sorted[0][0]]
+        p1 = dict_cl_mkr_coords[cl_mkr_dist_sorted[1][0]]
+        p2 = dict_cl_mkr_coords[cl_mkr_dist_sorted[2][0]]
+        p3 = tgt_mkr_coords
+        vec0 = p1-p0
+        vec1 = p2-p0
+        vec0_norm = np.linalg.norm(vec0, axis=1, keepdims=True)
+        vec1_norm = np.linalg.norm(vec1, axis=1, keepdims=True)
+        vec0_unit = np.divide(vec0, vec0_norm, where=(vec0_norm!=0))
+        vec1_unit = np.divide(vec1, vec1_norm, where=(vec1_norm!=0))
+        vec2 = np.cross(vec0_unit, vec1_unit)
+        vec2_norm = np.linalg.norm(vec2, axis=1, keepdims=True)
+        vec2_unit = np.divide(vec2, vec2_norm, where=(vec2_norm!=0))
+        vec3 = p3-p0
+        vec_z = vec2_unit
+        vec_x = vec0_unit
+        vec_y = np.cross(vec_z, vec_x)
+        mat_rot = np.array([vec_x.T, vec_y.T, vec_z.T]).T
+        for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
+            search_idx = np.searchsorted(all_mkr_valid_frs, fr)
+            if search_idx == 0:
+                fr0 = all_mkr_valid_frs[0]
+                rot_fr0_to_fr = np.dot(mat_rot[fr], mat_rot[fr0].T)
+                vt_fr0 = np.dot(rot_fr0_to_fr, vec3[fr0])
+                vc = vt_fr0
+            elif search_idx >= all_mkr_valid_frs.shape[0]:
+                fr1 = all_mkr_valid_frs[all_mkr_valid_frs.shape[0]-1]
+                rot_fr1_to_fr = np.dot(mat_rot[fr], mat_rot[fr1].T)
+                vt_fr1 = np.dot(rot_fr1_to_fr, vec3[fr1])
+                vc = vt_fr1
+            else:
+                fr0 = all_mkr_valid_frs[search_idx-1]
+                fr1 = all_mkr_valid_frs[search_idx]
+                rot_fr0_to_fr = np.dot(mat_rot[fr], mat_rot[fr0].T)
+                rot_fr1_to_fr = np.dot(mat_rot[fr], mat_rot[fr1].T)
+                vt_fr0 = np.dot(rot_fr0_to_fr, vec3[fr0])
+                vt_fr1 = np.dot(rot_fr1_to_fr, vec3[fr1])
+                a = np.float32(fr-fr0)
+                b = np.float32(fr1-fr)
+                vc = (b*vt_fr0+a*vt_fr1)/(a+b)
+            tgt_mkr_coords[fr] = p0[fr]+vc
+            tgt_mkr_resid[fr] = 0.0
+        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+        update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+        n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
+        if log: logger.info(f'Recovery of "{tgt_mkr_name}" is finished')
+        return True, n_tgt_mkr_valid_frs_updated
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise        
 
 def fill_marker_gap_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
     """
@@ -2645,75 +2729,88 @@ def fill_marker_gap_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
         err_norm = np.linalg.norm(err_vec, axis=1)
         mean_err_norm = np.mean(err_norm)
         return R, t, err_vec, err_norm, mean_err_norm
-    if log: logger.debug(f'Start gap filling of {tgt_mkr_name} ...')     
-    n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
-    tgt_mkr_coords = tgt_mkr_data[:,0:3]
-    tgt_mkr_resid = tgt_mkr_data[:,3]
-    tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
-    n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
-    if n_tgt_mkr_valid_frs == 0:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid target marker frame!')
-        return False, n_tgt_mkr_valid_frs
-    if n_tgt_mkr_valid_frs == n_total_frs:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: all target marker frames valid!')
-        return False , n_tgt_mkr_valid_frs   
-    dict_cl_mkr_coords = {}
-    dict_cl_mkr_valid = {}
-    cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
-    for mkr in cl_mkr_names:
-        mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
-        dict_cl_mkr_coords[mkr] = mkr_data[:,0:3]
-        dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
-        cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
-    all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
-    if not np.any(all_mkr_valid_mask):
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no common valid frame among markers!')
-        return False, n_tgt_mkr_valid_frs
-    cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
-    if not np.any(cl_mkr_only_valid_mask):
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: cluster markers not helpful!')
-        return False, n_tgt_mkr_valid_frs
-    all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
-    cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
-    b_updated = False
-    for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
-        search_idx = np.searchsorted(all_mkr_valid_frs, fr)
-        if search_idx == 0:
-            fr0 = all_mkr_valid_frs[0]
-            fr1 = all_mkr_valid_frs[1]
-        elif search_idx >= all_mkr_valid_frs.shape[0]:
-            fr0 = all_mkr_valid_frs[all_mkr_valid_frs.shape[0]-2]
-            fr1 = all_mkr_valid_frs[all_mkr_valid_frs.shape[0]-1]
+    try:
+        if log: logger.debug(f'Start gap filling of "{tgt_mkr_name}" ...')     
+        n_total_frs = get_num_frames(itf, log=log)
+        tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
+        if tgt_mkr_data is None:
+            err_msg = f'Unable to get the information of "{tgt_mkr_name}"'
+            raise ValueError(err_msg)        
+        tgt_mkr_coords = tgt_mkr_data[:,0:3]
+        tgt_mkr_resid = tgt_mkr_data[:,3]
+        tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
+        n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
+        if n_tgt_mkr_valid_frs == 0:
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: no valid target marker frame')
+            return False, n_tgt_mkr_valid_frs
+        if n_tgt_mkr_valid_frs == n_total_frs:
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: all target marker frames valid')
+            return False , n_tgt_mkr_valid_frs   
+        dict_cl_mkr_coords = {}
+        dict_cl_mkr_valid = {}
+        cl_mkr_valid_mask = np.ones((n_total_frs), dtype=bool)
+        for mkr in cl_mkr_names:
+            mkr_data = get_marker_data(itf, mkr, blocked_nan=False, log=log)
+            if mkr_data is None:
+                err_msg = f'Unable to get the information of "{mkr}"'
+                raise ValueError(err_msg)            
+            dict_cl_mkr_coords[mkr] = mkr_data[:,0:3]
+            dict_cl_mkr_valid[mkr] = np.where(np.isclose(mkr_data[:,3], -1), False, True)
+            cl_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, dict_cl_mkr_valid[mkr])
+        all_mkr_valid_mask = np.logical_and(cl_mkr_valid_mask, tgt_mkr_valid_mask)
+        if not np.any(all_mkr_valid_mask):
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: no common valid frame among markers')
+            return False, n_tgt_mkr_valid_frs
+        cl_mkr_only_valid_mask = np.logical_and(cl_mkr_valid_mask, np.logical_not(tgt_mkr_valid_mask))
+        if not np.any(cl_mkr_only_valid_mask):
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: cluster markers not helpful')
+            return False, n_tgt_mkr_valid_frs
+        all_mkr_valid_frs = np.where(all_mkr_valid_mask)[0]
+        cl_mkr_only_valid_frs = np.where(cl_mkr_only_valid_mask)[0]
+        b_updated = False
+        for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
+            search_idx = np.searchsorted(all_mkr_valid_frs, fr)
+            if search_idx == 0:
+                fr0 = all_mkr_valid_frs[0]
+                fr1 = all_mkr_valid_frs[1]
+            elif search_idx >= all_mkr_valid_frs.shape[0]:
+                fr0 = all_mkr_valid_frs[all_mkr_valid_frs.shape[0]-2]
+                fr1 = all_mkr_valid_frs[all_mkr_valid_frs.shape[0]-1]
+            else:
+                fr0 = all_mkr_valid_frs[search_idx-1]
+                fr1 = all_mkr_valid_frs[search_idx]
+            if fr <= fr0 or fr >= fr1: continue
+            if ~cl_mkr_valid_mask[fr0] or ~cl_mkr_valid_mask[fr1]: continue
+            if np.any(~cl_mkr_valid_mask[fr0:fr1+1]): continue
+            cl_mkr_coords_fr0 = np.zeros((len(cl_mkr_names), 3), dtype=np.float32)
+            cl_mkr_coords_fr1 = np.zeros((len(cl_mkr_names), 3), dtype=np.float32)
+            cl_mkr_coords_fr = np.zeros((len(cl_mkr_names), 3), dtype=np.float32)
+            for cnt, mkr in enumerate(cl_mkr_names):
+                cl_mkr_coords_fr0[cnt,:] = dict_cl_mkr_coords[mkr][fr0,:]
+                cl_mkr_coords_fr1[cnt,:] = dict_cl_mkr_coords[mkr][fr1,:]
+                cl_mkr_coords_fr[cnt,:] = dict_cl_mkr_coords[mkr][fr,:]
+            rot_fr0, trans_fr0, _, _, _ = RBT(cl_mkr_coords_fr0, cl_mkr_coords_fr)
+            rot_fr1, trans_fr1, _, _, _ = RBT(cl_mkr_coords_fr1, cl_mkr_coords_fr)
+            tgt_mkr_coords_fr_fr0 = np.dot(rot_fr0, tgt_mkr_coords[fr0])+trans_fr0
+            tgt_mkr_coords_fr_fr1 = np.dot(rot_fr1, tgt_mkr_coords[fr1])+trans_fr1
+            tgt_mkr_coords[fr] = (tgt_mkr_coords_fr_fr1-tgt_mkr_coords_fr_fr0)*np.float32(fr-fr0)/np.float32(fr1-fr0)+tgt_mkr_coords_fr_fr0
+            tgt_mkr_resid[fr] = 0.0        
+            b_updated = True        
+        if b_updated:
+            update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+            update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+            n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is finished')
+            return True, n_tgt_mkr_valid_frs_updated
         else:
-            fr0 = all_mkr_valid_frs[search_idx-1]
-            fr1 = all_mkr_valid_frs[search_idx]
-        if fr <= fr0 or fr >= fr1: continue
-        if ~cl_mkr_valid_mask[fr0] or ~cl_mkr_valid_mask[fr1]: continue
-        if np.any(~cl_mkr_valid_mask[fr0:fr1+1]): continue
-        cl_mkr_coords_fr0 = np.zeros((len(cl_mkr_names), 3), dtype=np.float32)
-        cl_mkr_coords_fr1 = np.zeros((len(cl_mkr_names), 3), dtype=np.float32)
-        cl_mkr_coords_fr = np.zeros((len(cl_mkr_names), 3), dtype=np.float32)
-        for cnt, mkr in enumerate(cl_mkr_names):
-            cl_mkr_coords_fr0[cnt,:] = dict_cl_mkr_coords[mkr][fr0,:]
-            cl_mkr_coords_fr1[cnt,:] = dict_cl_mkr_coords[mkr][fr1,:]
-            cl_mkr_coords_fr[cnt,:] = dict_cl_mkr_coords[mkr][fr,:]
-        rot_fr0, trans_fr0, _, _, _ = RBT(cl_mkr_coords_fr0, cl_mkr_coords_fr)
-        rot_fr1, trans_fr1, _, _, _ = RBT(cl_mkr_coords_fr1, cl_mkr_coords_fr)
-        tgt_mkr_coords_fr_fr0 = np.dot(rot_fr0, tgt_mkr_coords[fr0])+trans_fr0
-        tgt_mkr_coords_fr_fr1 = np.dot(rot_fr1, tgt_mkr_coords[fr1])+trans_fr1
-        tgt_mkr_coords[fr] = (tgt_mkr_coords_fr_fr1-tgt_mkr_coords_fr_fr0)*np.float32(fr-fr0)/np.float32(fr1-fr0)+tgt_mkr_coords_fr_fr0
-        tgt_mkr_resid[fr] = 0.0        
-        b_updated = True        
-    if b_updated:
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-        update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
-        n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} is finished.')
-        return True, n_tgt_mkr_valid_frs_updated
-    else:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} is skipped.')
-        return False, n_tgt_mkr_valid_frs
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is skipped')
+            return False, n_tgt_mkr_valid_frs
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise        
 
 def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
     """
@@ -2746,62 +2843,75 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
     .. [1] https://github.com/mkjung99/gapfill
     
     """
-    if log: logger.debug(f'Start gap filling of {tgt_mkr_name} ...')    
-    n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
-    tgt_mkr_coords = tgt_mkr_data[:, 0:3]
-    tgt_mkr_resid = tgt_mkr_data[:, 3]
-    tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
-    n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
-    if n_tgt_mkr_valid_frs == 0:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid target marker frame!')
-        return False, n_tgt_mkr_valid_frs
-    if n_tgt_mkr_valid_frs == n_total_frs:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: all target marker frames valid!')
-        return False , n_tgt_mkr_valid_frs    
-    dnr_mkr_data = get_marker_data(itf, dnr_mkr_name, blocked_nan=False, log=log)
-    dnr_mkr_coords = dnr_mkr_data[:, 0:3]
-    dnr_mkr_resid = dnr_mkr_data[:, 3]
-    dnr_mkr_valid_mask = np.where(np.isclose(dnr_mkr_resid, -1), False, True)
-    if not np.any(dnr_mkr_valid_mask):
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid donor marker frame!')
-        return False, n_tgt_mkr_valid_frs    
-    both_mkr_valid_mask = np.logical_and(tgt_mkr_valid_mask, dnr_mkr_valid_mask)
-    if not np.any(both_mkr_valid_mask):
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid common frame between target and donor markers!')
-        return False, n_tgt_mkr_valid_frs        
-    b_updated = False
-    tgt_mkr_invalid_frs = np.where(~tgt_mkr_valid_mask)[0]
-    both_mkr_valid_frs = np.where(both_mkr_valid_mask)[0]
-    for idx, fr in np.ndenumerate(tgt_mkr_invalid_frs):
-        search_idx = np.searchsorted(both_mkr_valid_frs, fr)
-        if search_idx == 0:
-            fr0 = both_mkr_valid_frs[0]
-            fr1 = both_mkr_valid_frs[1]
-        elif search_idx >= both_mkr_valid_frs.shape[0]:
-            fr0 = both_mkr_valid_frs[both_mkr_valid_frs.shape[0]-2]
-            fr1 = both_mkr_valid_frs[both_mkr_valid_frs.shape[0]-1]
+    try:
+        if log: logger.debug(f'Start gap filling of "{tgt_mkr_name}" ...')    
+        n_total_frs = get_num_frames(itf, log=log)
+        tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
+        if tgt_mkr_data is None:
+            err_msg = f'Unable to get the information of "{tgt_mkr_name}"'
+            raise ValueError(err_msg)
+        tgt_mkr_coords = tgt_mkr_data[:, 0:3]
+        tgt_mkr_resid = tgt_mkr_data[:, 3]
+        tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
+        n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)
+        if n_tgt_mkr_valid_frs == 0:
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: no valid target marker frame')
+            return False, n_tgt_mkr_valid_frs
+        if n_tgt_mkr_valid_frs == n_total_frs:
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: all target marker frames valid')
+            return False , n_tgt_mkr_valid_frs    
+        dnr_mkr_data = get_marker_data(itf, dnr_mkr_name, blocked_nan=False, log=log)
+        if dnr_mkr_data is None:
+            err_msg = f'Unable to get the information of "{dnr_mkr_name}"'
+            raise ValueError(err_msg)        
+        dnr_mkr_coords = dnr_mkr_data[:, 0:3]
+        dnr_mkr_resid = dnr_mkr_data[:, 3]
+        dnr_mkr_valid_mask = np.where(np.isclose(dnr_mkr_resid, -1), False, True)
+        if not np.any(dnr_mkr_valid_mask):
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: no valid donor marker frame')
+            return False, n_tgt_mkr_valid_frs    
+        both_mkr_valid_mask = np.logical_and(tgt_mkr_valid_mask, dnr_mkr_valid_mask)
+        if not np.any(both_mkr_valid_mask):
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: no valid common frame between target and donor markers')
+            return False, n_tgt_mkr_valid_frs        
+        b_updated = False
+        tgt_mkr_invalid_frs = np.where(~tgt_mkr_valid_mask)[0]
+        both_mkr_valid_frs = np.where(both_mkr_valid_mask)[0]
+        for idx, fr in np.ndenumerate(tgt_mkr_invalid_frs):
+            search_idx = np.searchsorted(both_mkr_valid_frs, fr)
+            if search_idx == 0:
+                fr0 = both_mkr_valid_frs[0]
+                fr1 = both_mkr_valid_frs[1]
+            elif search_idx >= both_mkr_valid_frs.shape[0]:
+                fr0 = both_mkr_valid_frs[both_mkr_valid_frs.shape[0]-2]
+                fr1 = both_mkr_valid_frs[both_mkr_valid_frs.shape[0]-1]
+            else:
+                fr0 = both_mkr_valid_frs[search_idx-1]
+                fr1 = both_mkr_valid_frs[search_idx]
+            if fr <= fr0 or fr >= fr1: continue
+            if ~dnr_mkr_valid_mask[fr0] or ~dnr_mkr_valid_mask[fr1]: continue
+            if np.any(~dnr_mkr_valid_mask[fr0:fr1+1]): continue    
+            v_tgt = (tgt_mkr_coords[fr1]-tgt_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+tgt_mkr_coords[fr0]
+            v_dnr = (dnr_mkr_coords[fr1]-dnr_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+dnr_mkr_coords[fr0]
+            # new_coords = v_tgt-v_dnr+dnr_mkr_coords[fr]      
+            tgt_mkr_coords[fr] = v_tgt-v_dnr+dnr_mkr_coords[fr]
+            tgt_mkr_resid[fr] = 0.0        
+            b_updated = True
+        if b_updated:
+            update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, log=log)
+            update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, log=log)
+            n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is finished')
+            return True, n_tgt_mkr_valid_frs_updated
         else:
-            fr0 = both_mkr_valid_frs[search_idx-1]
-            fr1 = both_mkr_valid_frs[search_idx]
-        if fr <= fr0 or fr >= fr1: continue
-        if ~dnr_mkr_valid_mask[fr0] or ~dnr_mkr_valid_mask[fr1]: continue
-        if np.any(~dnr_mkr_valid_mask[fr0:fr1+1]): continue    
-        v_tgt = (tgt_mkr_coords[fr1]-tgt_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+tgt_mkr_coords[fr0]
-        v_dnr = (dnr_mkr_coords[fr1]-dnr_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+dnr_mkr_coords[fr0]
-        new_coords = v_tgt-v_dnr+dnr_mkr_coords[fr]      
-        tgt_mkr_coords[fr] = new_coords
-        tgt_mkr_resid[fr] = 0.0        
-        b_updated = True
-    if b_updated:
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, log=log)
-        update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, log=log)
-        n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} is finished.')
-        return True, n_tgt_mkr_valid_frs_updated
-    else:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} is skipped.')
-        return False, n_tgt_mkr_valid_frs
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is skipped')
+            return False, n_tgt_mkr_valid_frs
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
 
 def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_needed_frs=10, log=False):
     """
@@ -2838,54 +2948,64 @@ def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_nee
     .. [1] https://github.com/mkjung99/gapfill
     
     """
-    if log: logger.debug(f'Start gap filling of {tgt_mkr_name} ...')
-    n_total_frs = get_num_frames(itf)
-    tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
-    tgt_mkr_coords = tgt_mkr_data[:, 0:3]
-    tgt_mkr_resid = tgt_mkr_data[:, 3]
-    tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
-    n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)    
-    if n_tgt_mkr_valid_frs == 0:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: no valid target marker frame!')
-        return False, n_tgt_mkr_valid_frs
-    if n_tgt_mkr_valid_frs == n_total_frs:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} skipped: all target marker frames valid!')
-        return False , n_tgt_mkr_valid_frs     
-    b_updated = False
-    tgt_mkr_invalid_frs = np.where(~tgt_mkr_valid_mask)[0]
-    tgt_mkr_invalid_gaps = np.split(tgt_mkr_invalid_frs, np.where(np.diff(tgt_mkr_invalid_frs)!=1)[0]+1)
-    for gap in tgt_mkr_invalid_gaps:
-        if gap.size == 0: continue
-        if gap.min()==0 or gap.max()==n_total_frs-1: continue
-        search_span = np.int(np.ceil(gap.size/2))+search_span_offset
-        itpl_cand_frs_mask = np.zeros((n_total_frs,), dtype=bool)
-        for i in range(gap.min()-1, gap.min()-1-search_span, -1):
-            if i>=0: itpl_cand_frs_mask[i]=True
-        for i in range(gap.max()+1, gap.max()+1+search_span, 1):
-            if i<n_total_frs: itpl_cand_frs_mask[i]=True
-        itpl_cand_frs_mask = np.logical_and(itpl_cand_frs_mask, tgt_mkr_valid_mask)
-        if np.sum(itpl_cand_frs_mask) < min_needed_frs: continue
-        itpl_cand_frs = np.where(itpl_cand_frs_mask)[0]
-        itpl_cand_coords = tgt_mkr_coords[itpl_cand_frs, :]
-        fun_itpl_x = InterpolatedUnivariateSpline(itpl_cand_frs, itpl_cand_coords[:,0], k=k, ext='const')
-        fun_itpl_y = InterpolatedUnivariateSpline(itpl_cand_frs, itpl_cand_coords[:,1], k=k, ext='const')
-        fun_itpl_z = InterpolatedUnivariateSpline(itpl_cand_frs, itpl_cand_coords[:,2], k=k, ext='const')
-        itpl_x = fun_itpl_x(gap)
-        itpl_y = fun_itpl_y(gap)
-        itpl_z = fun_itpl_z(gap)
-        for idx, fr in enumerate(gap):
-            tgt_mkr_coords[fr,0] = itpl_x[idx]
-            tgt_mkr_coords[fr,1] = itpl_y[idx]
-            tgt_mkr_coords[fr,2] = itpl_z[idx]
-            tgt_mkr_resid[fr] = 0.0        
-        b_updated = True            
-    if b_updated:
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-        update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
-        n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} is finished.')
-        return True, n_tgt_mkr_valid_frs_updated
-    else:
-        if log: logger.info(f'Gap filling of {tgt_mkr_name} is skipped.')
-        return False, n_tgt_mkr_valid_frs
+    try:
+        if log: logger.debug(f'Start gap filling of "{tgt_mkr_name}" ...')
+        n_total_frs = get_num_frames(itf, log=log)
+        tgt_mkr_data = get_marker_data(itf, tgt_mkr_name, blocked_nan=False, log=log)
+        if tgt_mkr_data is None:
+            err_msg = f'Unable to get the information of "{tgt_mkr_name}"'
+            raise ValueError(err_msg)        
+        tgt_mkr_coords = tgt_mkr_data[:, 0:3]
+        tgt_mkr_resid = tgt_mkr_data[:, 3]
+        tgt_mkr_valid_mask = np.where(np.isclose(tgt_mkr_resid, -1), False, True)
+        n_tgt_mkr_valid_frs = np.count_nonzero(tgt_mkr_valid_mask)    
+        if n_tgt_mkr_valid_frs == 0:
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: no valid target marker frame')
+            return False, n_tgt_mkr_valid_frs
+        if n_tgt_mkr_valid_frs == n_total_frs:
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: all target marker frames valid')
+            return False , n_tgt_mkr_valid_frs     
+        b_updated = False
+        tgt_mkr_invalid_frs = np.where(~tgt_mkr_valid_mask)[0]
+        tgt_mkr_invalid_gaps = np.split(tgt_mkr_invalid_frs, np.where(np.diff(tgt_mkr_invalid_frs)!=1)[0]+1)
+        for gap in tgt_mkr_invalid_gaps:
+            if gap.size == 0: continue
+            if gap.min()==0 or gap.max()==n_total_frs-1: continue
+            search_span = np.int(np.ceil(gap.size/2))+search_span_offset
+            itpl_cand_frs_mask = np.zeros((n_total_frs,), dtype=bool)
+            for i in range(gap.min()-1, gap.min()-1-search_span, -1):
+                if i>=0: itpl_cand_frs_mask[i]=True
+            for i in range(gap.max()+1, gap.max()+1+search_span, 1):
+                if i<n_total_frs: itpl_cand_frs_mask[i]=True
+            itpl_cand_frs_mask = np.logical_and(itpl_cand_frs_mask, tgt_mkr_valid_mask)
+            if np.sum(itpl_cand_frs_mask) < min_needed_frs: continue
+            itpl_cand_frs = np.where(itpl_cand_frs_mask)[0]
+            itpl_cand_coords = tgt_mkr_coords[itpl_cand_frs, :]
+            fun_itpl_x = InterpolatedUnivariateSpline(itpl_cand_frs, itpl_cand_coords[:,0], k=k, ext='const')
+            fun_itpl_y = InterpolatedUnivariateSpline(itpl_cand_frs, itpl_cand_coords[:,1], k=k, ext='const')
+            fun_itpl_z = InterpolatedUnivariateSpline(itpl_cand_frs, itpl_cand_coords[:,2], k=k, ext='const')
+            itpl_x = fun_itpl_x(gap)
+            itpl_y = fun_itpl_y(gap)
+            itpl_z = fun_itpl_z(gap)
+            for idx, fr in enumerate(gap):
+                tgt_mkr_coords[fr,0] = itpl_x[idx]
+                tgt_mkr_coords[fr,1] = itpl_y[idx]
+                tgt_mkr_coords[fr,2] = itpl_z[idx]
+                tgt_mkr_resid[fr] = 0.0        
+            b_updated = True            
+        if b_updated:
+            update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
+            update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+            n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is finished')
+            return True, n_tgt_mkr_valid_frs_updated
+        else:
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is skipped')
+            return False, n_tgt_mkr_valid_frs
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
     
