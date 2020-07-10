@@ -28,6 +28,7 @@ __version__ = '0.0.9'
 import os
 import pythoncom
 import win32com.client as win32
+import math
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 import logging
@@ -568,7 +569,7 @@ def get_analog_frames(itf, log=False):
         n_frs = last_fr-first_fr+1
         analog_steps = n_frs*av_ratio
         frs = np.linspace(start=start_fr, stop=end_fr, num=analog_steps, dtype=np.float32)
-        return frs        
+        return frs
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
@@ -604,7 +605,7 @@ def get_video_times(itf, from_zero=True, log=False):
         return t        
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
-        raise        
+        raise
 
 def get_analog_times(itf, from_zero=True, log=False):
     """
@@ -979,7 +980,7 @@ def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=N
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
-            if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter')
+            if log: logger.debug(f'C3D data type is determined by POINT:SCALE parameter')
         mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
         mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
         scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
@@ -1338,7 +1339,7 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, lo
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
-            if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter')
+            if log: logger.debug(f'C3D data type is determined by POINT:SCALE parameter')
         sig_dtype = [[np.int16, np.uint16][is_sig_unsigned], np.float32][is_c3d_float]
         sig = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
         return sig
@@ -2045,78 +2046,163 @@ def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
         if log: logger.error(err)
         raise
 
-def auto_correct_params(itf, log=False):
-    try:
-        # POINT group
-        # Step0: process POINT:DESCRIPTIONS
-        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-        n_pt_used = itf.GetParameterValue(idx_pt_used, 0)                  
-        idx_pt_descs = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
-        n_pt_descs = itf.GetParameterLength(idx_pt_descs)
-        if n_pt_descs < n_pt_used:
-            for i in range(n_pt_descs, n_pt_used):
-                ret = itf.AddParameterData(idx_pt_descs, 1)
-                descs_len = itf.GetParameterLength(idx_pt_descs)
-                var_desc = win32.VARIANT(pythoncom.VT_BSTR, str(descs_len))
-                ret = itf.SetParameterValue(idx_pt_descs, descs_len-1, var_desc)
-        elif n_pt_descs > n_pt_used:
-            pt_descs = []
-            for i in range(n_pt_used):
-                pt_descs.apppend(itf.GetParameterValue(idx_pt_descs, i))
-            num_desc_chars = [len(x) for x in pt_descs]
-            size_desc = max(num_desc_chars)
-            par_desc = itf.GetParameterDescription(idx_pt_descs)
-            par_type = itf.GetParameterType(idx_pt_descs)
-            par_num_dim = itf.GetParameterNumberDim(idx_pt_descs)
-            par_dim = [size_desc, n_pt_used]
-            var_par_dim = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_dim)
-            # Use a pure python list of strings for pythoncom.VT_ARRAY|pythoncom.VT_BSTR instead of a ndarray
-            var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, pt_descs)
-            # Delete existing POINT:DESCRIPTIONS
-            ret = [False, True][itf.DeleteParameter(idx_pt_descs)]
-            if not ret:
-                err_msg = 'Failed to delete existing POINT:DESCRIPTIONS parameter'
-                raise RuntimeError(err_msg)
-            # Create new POINT:DESCRIPTIONS
-            idx_pt_descs = itf.AddParameter('DESCRIPTIONS', par_desc, 'POINT', np.uint8(0), par_type, par_num_dim, var_par_dim, var_par_data)
-            if idx_pt_descs == -1:
-                err_msg = 'Failed to create new POINT:LABELS parameter'
-                raise RuntimeError(err_msg)            
-        # Step1: process POINT:LABELS
-        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-        n_pt_used = itf.GetParameterValue(idx_pt_used, 0)        
-        idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-        n_pt_labels = itf.GetParameterLength(idx_pt_labels)        
-        if n_pt_labels < n_pt_used:
-            err_msg = 'Number of item under POINT:LABELS is less than POINT:USED'
-            raise RuntimeError(err_msg)
-        elif n_pt_labels > n_pt_used:
-            pt_labels = []
-            for i in range(n_pt_used):
-                pt_labels.append(itf.GetParameterValue(idx_pt_labels, i))
-            # pt_labels_byte = [str.encode(x) for x in pt_labels]
-            # pt_labels_dummy = [' '*size_label]*n_pt_used
-            num_label_chars = [len(x) for x in pt_labels]
-            size_label = max(num_label_chars)*2
-            par_desc = itf.GetParameterDescription(idx_pt_labels)
-            par_type = itf.GetParameterType(idx_pt_labels)
-            par_num_dim = itf.GetParameterNumberDim(idx_pt_labels)
-            par_dim = [size_label, n_pt_used]
-            var_par_dim = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_dim)
-            # Use a pure python list of strings for pythoncom.VT_ARRAY|pythoncom.VT_BSTR instead of a ndarray
-            var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, pt_labels)
-            # Delete existing POINT:LABELS
-            ret = [False, True][itf.DeleteParameter(idx_pt_labels)]
-            if not ret:
-                err_msg = 'Failed to delete existing POINT:LABELS parameter'
-                raise RuntimeError(err_msg)             
-            # Create new POINT:LABELS
-            idx_pt_labels = itf.AddParameter('LABELS', par_desc, 'POINT', np.uint8(0), par_type, par_num_dim, var_par_dim, var_par_data)
-            if idx_pt_labels == -1:
-                err_msg = 'Failed to create new POINT:LABELS parameter'
-                raise RuntimeError(err_msg)
+def adjust_param_items(itf, grp_name, param_name, recreate_param=False, keep_str_len=True, log=False):
+    """
+    Adjust a specific group parameter's length to be compatible with USED parameter.
 
-            
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    grp_name : str
+        Group name.
+    param_name : str
+        Parameter name.
+    recreate_param : bool, optional
+        Whether to recreate the parameter or not. The default is False.
+    keep_str_len : bool, optional
+        Whether to keep the first dimension (string length) of the parameter if you recreate a parameter. The default is True.
+    log : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+
+    """
+    try:
+        if grp_name not in ['POINT', 'ANALOG']:
+            err_msg = f'This function only works with either POINT or ANALOG group'
+            raise ValueError(err_msg)
+        if grp_name=='POINT' and param_name not in ['DESCRIPTIONS', 'LABELS']:
+            err_msg = f'{grp_name}:{param_name} is not supported with this function'
+            raise ValueError(err_msg)
+        if grp_name=='ANALOG' and param_name not in ['DESCRIPTIONS', 'LABELS', 'UNITS', 'SCALE', 'OFFSET']:
+            err_msg = f'{grp_name}:{param_name} is not supported with this function'
+            raise ValueError(err_msg)            
+        if param_name == 'DESCRIPTIONS':
+            idx_used = itf.GetParameterIndex(grp_name, 'USED')
+            n_used = itf.GetParameterValue(idx_used, 0)
+            idx_par = itf.GetParameterIndex(grp_name, param_name)
+            n_par = itf.GetParameterLength(idx_par)
+            if n_par == n_used:
+                if log: logger.debug(f'Skipped: {grp_name}:{param_name} has as same number of items as {grp_name}:USED')
+                return False            
+            elif n_par < n_used:
+                for i in range(n_par, n_used):
+                    ret = itf.AddParameterData(idx_par, 1)
+                    par_len = itf.GetParameterLength(idx_par)
+                    var_desc = win32.VARIANT(pythoncom.VT_BSTR, str(par_len))
+                    ret = itf.SetParameterValue(idx_par, par_len-1, var_desc)
+            else:
+                if recreate_param:
+                    par_desc = itf.GetParameterDescription(idx_par)
+                    par_num_dim = itf.GetParameterNumberDim(idx_par)
+                    par_dim_old = [itf.GetParameterDimension(idx_par, j) for j in range(par_num_dim)]
+                    par_data = []
+                    for i in range(n_used):
+                        par_data.append(itf.GetParameterValue(idx_par, i))
+                    par_type = itf.GetParameterType(idx_par)
+                    size_par_ideal = math.ceil(float(par_dim_old[0]*par_dim_old[1])/float(n_used))
+                    size_par = [size_par_ideal, par_dim_old[0]][keep_str_len]
+                    par_dim = [size_par, n_used]
+                    var_par_dim = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_dim)
+                    # Use a pure python list of strings for pythoncom.VT_ARRAY|pythoncom.VT_BSTR instead of a ndarray
+                    var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, par_data)
+                    # Delete existing parameter
+                    ret = [False, True][itf.DeleteParameter(idx_par)]
+                    if not ret:
+                        err_msg = f'Failed to delete existing {grp_name}:{param_name}'
+                        raise RuntimeError(err_msg)
+                    # Create new parameter
+                    idx_par = itf.AddParameter(param_name, par_desc, grp_name, np.uint8(0), par_type, par_num_dim, var_par_dim, var_par_data)
+                    if idx_par == -1:
+                        err_msg = f'Failed to create new {grp_name}:{param_name}'
+                        raise RuntimeError(err_msg)
+                    else:
+                        return True
+                else:
+                    for i in range(n_par-1, n_used-1, -1):
+                        ret = itf.RemoveParameterData(idx_par, i)
+                        if ret == 0:
+                            err_msg = f'Failed to delete {i+1}th item under {grp_name}:{param_name}'
+                            raise RuntimeError(err_msg)
+                    return True
+        else:
+            idx_used = itf.GetParameterIndex(grp_name, 'USED')
+            n_used = itf.GetParameterValue(idx_used, 0)
+            idx_par = itf.GetParameterIndex(grp_name, param_name)
+            n_par = itf.GetParameterLength(idx_par)
+            if n_par == n_used:
+                if log: logger.debug(f'Skipped: {grp_name}:{param_name} has as same number of items as {grp_name}:USED')
+                return False            
+            elif n_par < n_used:
+                err_msg = f'Number of item under {grp_name}:{param_name} is less than {grp_name}:USED'
+                raise RuntimeError(err_msg)
+            else:
+                if recreate_param:
+                    par_desc = itf.GetParameterDescription(idx_par)
+                    par_num_dim = itf.GetParameterNumberDim(idx_par)
+                    par_dim_old = [itf.GetParameterDimension(idx_par, j) for j in range(par_num_dim)]
+                    par_data = []
+                    for i in range(n_used):
+                        par_data.append(itf.GetParameterValue(idx_par, i))                
+                    par_type = itf.GetParameterType(idx_par)
+                    if par_type == -1:
+                        size_par_ideal = math.ceil(float(par_dim_old[0]*par_dim_old[1])/float(n_used))
+                        size_par = [size_par_ideal, par_dim_old[0]][keep_str_len]
+                        par_dim = [size_par, n_used]
+                    else:
+                        par_dim = [n_used]
+                    var_par_dim = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_dim)
+                    # Use a pure python list of strings for pythoncom.VT_ARRAY|pythoncom.VT_BSTR instead of a ndarray
+                    if par_type == -1:
+                        var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, par_data)
+                    elif par_type == 1:
+                        var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I1, par_data)
+                    elif par_type == 2:
+                        var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_data)
+                    elif par_type == 4:
+                        var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, par_data)
+                    else:
+                        err_msg = f'Unknow data type from {grp_name}:{param_name}'
+                        raise RuntimeError(err_msg)              
+                    # Delete existing parameter
+                    ret = [False, True][itf.DeleteParameter(idx_par)]
+                    if not ret:
+                        err_msg = f'Failed to delete existing {grp_name}:{param_name}'
+                        raise RuntimeError(err_msg)             
+                    # Create new parameter
+                    idx_par = itf.AddParameter(param_name, par_desc, grp_name, np.uint8(0), par_type, par_num_dim, var_par_dim, var_par_data)
+                    if idx_par == -1:
+                        err_msg = f'Failed to create new {grp_name}:{param_name}'
+                        raise RuntimeError(err_msg)
+                    else:
+                        return True                    
+                else:
+                    for i in range(n_par-1, n_used-1, -1):
+                        ret = itf.RemoveParameterData(idx_par, i)
+                        if ret == 0:
+                            err_msg = f'Failed to delete {i+1}th item under {grp_name}:{param_name}'
+                            raise RuntimeError(err_msg)                       
+                    return True
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise            
+    
+def auto_adjust_params(itf, recreate_param=False, keep_str_len=True, log=False):
+    try:
+        adjust_param_items(itf, 'POINT', 'LABELS', recreate_param, keep_str_len, log=log)
+        adjust_param_items(itf, 'POINT', 'DESCRIPTIONS', recreate_param, keep_str_len, log=log)
+        adjust_param_items(itf, 'ANALOG', 'SCALE', recreate_param, keep_str_len, log=log)
+        adjust_param_items(itf, 'ANALOG', 'OFFSET', recreate_param, keep_str_len, log=log)
+        adjust_param_items(itf, 'ANALOG', 'UNITS', recreate_param, keep_str_len, log=log)
+        adjust_param_items(itf, 'ANALOG', 'LABELS', recreate_param, keep_str_len, log=log)
+        adjust_param_items(itf, 'ANALOG', 'DESCRIPTIONS', recreate_param, keep_str_len, log=log)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
@@ -2158,44 +2244,48 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
         if log: logger.debug(f'Start adding a new "{mkr_name}" marker ...')
         start_fr = get_first_frame(itf, log=log)
         n_frs = get_num_frames(itf, log=log)
-        if not (mkr_coords.ndim == 2 and mkr_coords.shape[0] == n_frs and mkr_coords.shape[1] == 3):
-            err_msg = 'The dimension of the input marker coordinates are not valid'
+        if not (mkr_coords.ndim==2 and mkr_coords.shape[0]==n_frs and mkr_coords.shape[1]==3):
+            err_msg = 'Dimensions of input marker coordinates are not valid'
             raise ValueError(err_msg)
         if mkr_resid is not None:
-            if not (mkr_resid.ndim == 1 and mkr_resid.shape[0] == n_frs):
-                err_msg = 'The dimension of the input marker residuals are not valid'
+            if not (mkr_resid.ndim==1 and mkr_resid.shape[0]==n_frs):
+                err_msg = 'Dimensions of input marker residuals are not valid'
                 raise ValueError(err_msg)
+        # Adjust marker info
+        adjust_param_items(itf, 'POINT', 'LABELS', recreate_param=False, keep_str_len=True, log=log)
+        adjust_param_items(itf, 'POINT', 'DESCRIPTIONS', recreate_param=False, keep_str_len=True, log=log)
         ret = 0
-        # Check the value 'POINT:USED'
-        par_idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-        n_pt_used_before = itf.GetParameterValue(par_idx_pt_used, 0)
-        # Check the value 'POINT:LABELS'
-        par_idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-        n_pt_labels_before = itf.GetParameterLength(par_idx_pt_labels)
+        # Check 'POINT:USED'
+        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        n_pt_used_before = itf.GetParameterValue(idx_pt_used, 0)
+        # Check 'POINT:LABELS'
+        idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        n_pt_labels_before = itf.GetParameterLength(idx_pt_labels)
         # Skip if 'POINT:USED' and 'POINT:LABELS' have different numbers
         if n_pt_used_before != n_pt_labels_before:
             if log: logger.error('This function only works if POINT:USED is as same as the number of items under POINT:LABELS')
             return False
-        # Add an parameter to the 'POINT:LABELS' section
-        # par_idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-        ret = itf.AddParameterData(par_idx_pt_labels, 1)
-        n_pt_labels = itf.GetParameterLength(par_idx_pt_labels)
-        variant = win32.VARIANT(pythoncom.VT_BSTR, np.string_(mkr_name))
-        ret = itf.SetParameterValue(par_idx_pt_labels, n_pt_labels-1, variant)
+        # Add an parameter to 'POINT:LABELS'
+        # idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        ret = itf.AddParameterData(idx_pt_labels, 1)
+        n_pt_labels = itf.GetParameterLength(idx_pt_labels)
+        var_mkr_name = win32.VARIANT(pythoncom.VT_BSTR, mkr_name)
+        ret = itf.SetParameterValue(idx_pt_labels, n_pt_labels-1, var_mkr_name)
         # Add a null parameter in the 'POINT:DESCRIPTIONS' section
-        par_idx_pt_desc = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
-        ret = itf.AddParameterData(par_idx_pt_desc, 1)
-        n_pt_desc = itf.GetParameterLength(par_idx_pt_desc)
+        idx_pt_desc = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
+        ret = itf.AddParameterData(idx_pt_desc, 1)
+        n_pt_desc = itf.GetParameterLength(idx_pt_desc)
         mkr_desc_adjusted = '' if mkr_desc is None else mkr_desc
-        variant = win32.VARIANT(pythoncom.VT_BSTR, np.string_(mkr_desc_adjusted))
-        ret = itf.SetParameterValue(par_idx_pt_desc, n_pt_desc-1, variant)
+        var_mkr_desc = win32.VARIANT(pythoncom.VT_BSTR, mkr_desc_adjusted)
+        ret = itf.SetParameterValue(idx_pt_desc, n_pt_desc-1, var_mkr_desc)
         # Add a marker
         new_mkr_idx = itf.AddMarker()
         n_mkrs = itf.GetNumber3DPoints()
         mkr_null_masks = np.any(np.isnan(mkr_coords), axis=1)
         mkr_resid_adjusted = np.zeros((n_frs, ), dtype=np.float32) if mkr_resid is None else np.array(mkr_resid, dtype=np.float32)
         mkr_resid_adjusted[mkr_null_masks] = -1
-        mkr_masks = np.array(['0000000']*n_frs, dtype = np.string_)
+        # mkr_masks = np.array(['0000000']*n_frs, dtype = np.string_)
+        mkr_masks = ['0000000']*n_frs
         mkr_scale = get_marker_scale(itf, log=log)
         if mkr_scale is None:
             err_msg = f'Unable to get the marker scale factor'
@@ -2203,7 +2293,7 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
-            if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter')
+            if log: logger.debug('C3D data type is determined by POINT:SCALE parameter')
         mkr_dtype = [np.int16, np.float32][is_c3d_float]    
         scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
         if is_c3d_float:
@@ -2213,24 +2303,23 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=Fal
         dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
         dtype_arr = pythoncom.VT_ARRAY|dtype
         for i in range(3):
-            variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
-            ret = itf.SetPointDataEx(n_mkrs-1, i, start_fr, variant)
-        variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, mkr_resid_adjusted)
-        ret = itf.SetPointDataEx(n_mkrs-1, 3, start_fr, variant)
-        variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, mkr_masks)
-        ret = itf.SetPointDataEx(n_mkrs-1, 4, start_fr, variant)        
+            var_pos = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
+            ret = itf.SetPointDataEx(n_mkrs-1, i, start_fr, var_pos)
+        var_resid = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, mkr_resid_adjusted)
+        ret = itf.SetPointDataEx(n_mkrs-1, 3, start_fr, var_resid)
+        var_masks = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, mkr_masks)
+        ret = itf.SetPointDataEx(n_mkrs-1, 4, start_fr, var_masks)
         var_const = win32.VARIANT(dtype, 1)
         for i in range(3):
             for idx, val in enumerate(mkr_coords_unscaled[:,i]):
                 if val == 1:
                     ret = itf.SetPointData(n_mkrs-1, i, start_fr+idx, var_const)
-        return [False, True][ret]
-        # Increase the value 'POINT:USED' by the 1
-        par_idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
-        n_pt_used_after = itf.GetParameterValue(par_idx_pt_used, 0)
+        # Increase 'POINT:USED' by 1
+        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        n_pt_used_after = itf.GetParameterValue(idx_pt_used, 0)
         if n_pt_used_after != (n_pt_used_before+1):
             if log: log.debug('POINT:USED was not properly updated so that manual update will be executed')
-            ret = itf.SetParameterValue(par_idx_pt_used, 0, (n_pt_used_before+1))
+            ret = itf.SetParameterValue(idx_pt_used, 0, (n_pt_used_before+1))
         return [False, True][ret]
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -2335,7 +2424,7 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
         gen_scale = get_analog_gen_scale(itf, log=log)
         sig_value_unscaled = np.asarray(sig_value, dtype=np.float32)/(np.float32(sig_scale)*gen_scale)+np.float32(sig_offset_dtype(sig_offset))
         ret = itf.SetAnalogDataEx(n_idx_new_analog_ch, start_fr, win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled))
-        # Increase the value 'ANALOG:USED' by the 1
+        # Increase the value 'ANALOG:USED' by 1
         n_idx_analog_used = itf.GetParameterIndex('ANALOG', 'USED')
         n_cnt_analog_used_after = itf.GetParameterValue(n_idx_analog_used, 0)
         if n_cnt_analog_used_after != (n_cnt_analog_used_before+1):
@@ -2432,7 +2521,7 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
         is_c3d_float = mkr_scale < 0
         is_c3d_float2 = [False, True][itf.GetDataType()-1]
         if is_c3d_float != is_c3d_float2:
-            if log: logger.debug('C3D data type is determined by the POINT:SCALE parameter')
+            if log: logger.debug('C3D data type is determined by POINT:SCALE parameter')
         mkr_dtype = [np.int16, np.float32][is_c3d_float]
         scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
         if is_c3d_float:
