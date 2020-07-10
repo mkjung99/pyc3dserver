@@ -850,8 +850,8 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
         n_frs = end_fr-start_fr+1
         mkr_data = np.full((n_frs, 4), np.nan, dtype=np.float32)
         for i in range(3):
-            mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '1'), dtype=np.float32)
-        mkr_data[:,3] = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+            mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '1'), dtype=np.float32)
+        mkr_data[:,3] = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
         if blocked_nan:
             mkr_null_masks = np.where(np.isclose(mkr_data[:,3], -1), True, False)
             mkr_data[mkr_null_masks,0:3] = np.nan 
@@ -915,9 +915,9 @@ def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=No
         mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
         b_scaled = ['0', '1'][scaled]
         for i in range(3):
-            mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, b_scaled), dtype=mkr_dtype)
+            mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, b_scaled), dtype=mkr_dtype)
         if blocked_nan:
-            mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+            mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
             mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
             mkr_data[mkr_null_masks,:] = np.nan  
         return mkr_data
@@ -985,11 +985,11 @@ def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=N
         scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
         for i in range(3):
             if scaled:
-                mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)*scale_size
+                mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)*scale_size
             else:
-                mkr_data[:,i] = np.array(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)
+                mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)
         if blocked_nan:    
-            mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+            mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
             mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
             mkr_data[mkr_null_masks,:] = np.nan            
         return mkr_data
@@ -1029,7 +1029,7 @@ def get_marker_resid(itf, mkr_name, start_frame=None, end_frame=None, log=False)
         if not fr_check:
             if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
             return None
-        mkr_resid = np.array(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+        mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
         return mkr_resid
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1340,7 +1340,7 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, lo
         if is_c3d_float != is_c3d_float2:
             if log: logger.debug(f'C3D data type is determined by the POINT:SCALE parameter')
         sig_dtype = [[np.int16, np.uint16][is_sig_unsigned], np.float32][is_c3d_float]
-        sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
+        sig = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
         return sig
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1378,7 +1378,7 @@ def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, log=
         if not fr_check:
             if log: logger.warning('Given "start_frame" and "end_frame" conditions are not valid')
             return None
-        sig = np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
+        sig = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
         return sig
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1419,7 +1419,7 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log
         gen_scale = get_analog_gen_scale(itf, log=log)
         sig_scale = get_analog_scale(itf, sig_name, log=log)
         sig_offset = np.float32(get_analog_offset(itf, sig_name, log=log))
-        sig = (np.array(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
+        sig = (np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
         return sig
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1650,9 +1650,6 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
         end_fr = get_last_frame(itf, log=log) 
         n_frs = end_fr-start_fr+1
         idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
-        if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS1')
-        if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS2')
-        if idx_pt_labels == -1: idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS3')
         if idx_pt_labels == -1:
             if log: logger.warning('No POINT:LABELS parameter')
             return None
@@ -1688,9 +1685,9 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
                 mkr_names.append(mkr_name)
                 mkr_data = np.zeros((n_frs, 3), dtype=np.float32)
                 for j in range(3):
-                    mkr_data[:,j] = np.array(itf.GetPointDataEx(i, j, start_fr, end_fr, '1'), dtype=np.float32)
+                    mkr_data[:,j] = np.asarray(itf.GetPointDataEx(i, j, start_fr, end_fr, '1'), dtype=np.float32)
                 if blocked_nan or resid:
-                    mkr_resid = np.array(itf.GetPointResidualEx(i, start_fr, end_fr), dtype=np.float32)
+                    mkr_resid = np.asarray(itf.GetPointResidualEx(i, start_fr, end_fr), dtype=np.float32)
                 if blocked_nan:
                     mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
                     mkr_data[mkr_null_masks,:] = np.nan
@@ -1698,14 +1695,14 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
                 if resid:
                     dict_pts['DATA']['RESID'].update({mkr_name: mkr_resid})
                 if mask:
-                    mkr_mask = np.array(itf.GetPointMaskEx(i, start_fr, end_fr), dtype=str)
+                    mkr_mask = np.asarray(itf.GetPointMaskEx(i, start_fr, end_fr), dtype=str)
                     dict_pts['DATA']['MASK'].update({mkr_name: mkr_mask})
                 if desc:
                     if i < n_pt_desc:
                         mkr_descs.append(itf.GetParameterValue(idx_pt_desc, i))
                     else:
                         mkr_descs.append('')
-        dict_pts.update({'LABELS': np.array(mkr_names, dtype=str)})
+        dict_pts.update({'LABELS': np.asarray(mkr_names, dtype=str)})
         idx_pt_rate = itf.GetParameterIndex('POINT', 'RATE')
         if idx_pt_rate != -1:
             n_pt_rate = itf.GetParameterLength(idx_pt_rate)
@@ -1720,7 +1717,7 @@ def get_dict_markers(itf, blocked_nan=False, resid=False, mask=False, desc=False
                 dict_pts.update({'UNITS': unit})
         if desc:
             if idx_pt_desc != -1:
-                dict_pts.update({'DESCRIPTIONS': np.array(mkr_descs, dtype=str)})
+                dict_pts.update({'DESCRIPTIONS': np.asarray(mkr_descs, dtype=str)})
         if frame: dict_pts.update({'FRAME': get_video_frames(itf, log=log)})
         if time: dict_pts.update({'TIME': get_video_times(itf, log=log)})
         return dict_pts
@@ -1808,7 +1805,7 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
             force_names.append(ch_name)
             ch_scale = np.float32(itf.GetParameterValue(idx_analog_scale, ch_idx))
             ch_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx)))
-            ch_val = (np.array(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-ch_offset)*ch_scale*gen_scale
+            ch_val = (np.asarray(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-ch_offset)*ch_scale*gen_scale
             dict_forces['DATA'].update({ch_name: ch_val})
             if ch_idx < n_analog_units:
                 force_units.append(itf.GetParameterValue(idx_analog_units, ch_idx))
@@ -1819,17 +1816,17 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
                     force_descs.append(itf.GetParameterValue(idx_analog_desc, ch_idx))
                 else:
                     force_descs.append('')
-        dict_forces.update({'LABELS': np.array(force_names, dtype=str)})
+        dict_forces.update({'LABELS': np.asarray(force_names, dtype=str)})
         idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
         if idx_analog_rate != -1:
             n_analog_rate = itf.GetParameterLength(idx_analog_rate)
             if n_analog_rate == 1:
                 dict_forces.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
         if idx_analog_units != -1:
-            dict_forces.update({'UNITS': np.array(force_units, dtype=str)})
+            dict_forces.update({'UNITS': np.asarray(force_units, dtype=str)})
         if desc:
             if idx_analog_desc != -1:
-                dict_forces.update({'DESCRIPTIONS': np.array(force_descs, dtype=str)})
+                dict_forces.update({'DESCRIPTIONS': np.asarray(force_descs, dtype=str)})
         if frame: dict_forces.update({'FRAME': get_analog_frames(itf, log=log)})
         if time: dict_forces.update({'TIME': get_analog_times(itf, log=log)})
         return dict_forces
@@ -1931,7 +1928,7 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
                 analog_names.append(sig_name)
                 sig_scale = np.float32(itf.GetParameterValue(idx_analog_scale, i))
                 sig_offset = np.float32(offset_dtype(itf.GetParameterValue(idx_analog_offset, i)))
-                sig_val = (np.array(itf.GetAnalogDataEx(i, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
+                sig_val = (np.asarray(itf.GetAnalogDataEx(i, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
                 dict_analogs['DATA'].update({sig_name: sig_val})
                 if i < n_analog_units:
                     analog_units.append(itf.GetParameterValue(idx_analog_units, i))
@@ -1942,17 +1939,17 @@ def get_dict_analogs(itf, desc=False, frame=False, time=False, excl_forces=True,
                         analog_descs.append(itf.GetParameterValue(idx_analog_desc, i))
                     else:
                         analog_descs.append('')
-        dict_analogs.update({'LABELS': np.array(analog_names, dtype=str)})
+        dict_analogs.update({'LABELS': np.asarray(analog_names, dtype=str)})
         idx_analog_rate = itf.GetParameterIndex('ANALOG', 'RATE')
         if idx_analog_rate != -1:
             n_analog_rate = itf.GetParameterLength(idx_analog_rate)
             if n_analog_rate == 1:
                 dict_analogs.update({'RATE': np.float32(itf.GetParameterValue(idx_analog_rate, 0))})
         if idx_analog_units != -1:
-            dict_analogs.update({'UNITS': np.array(analog_units, dtype=str)})
+            dict_analogs.update({'UNITS': np.asarray(analog_units, dtype=str)})
         if desc:
             if idx_analog_desc != -1:
-                dict_analogs.update({'DESCRIPTIONS': np.array(analog_descs, dtype=str)})
+                dict_analogs.update({'DESCRIPTIONS': np.asarray(analog_descs, dtype=str)})
         if frame: dict_analogs.update({'FRAME': get_analog_frames(itf, log=log)})
         if time: dict_analogs.update({'TIME': get_analog_times(itf, log=log)})
         return dict_analogs
@@ -2048,6 +2045,88 @@ def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
         if log: logger.error(err)
         raise
 
+def auto_correct_params(itf, log=False):
+    try:
+        # POINT group
+        # Step0: process POINT:DESCRIPTIONS
+        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        n_pt_used = itf.GetParameterValue(idx_pt_used, 0)                  
+        idx_pt_descs = itf.GetParameterIndex('POINT', 'DESCRIPTIONS')
+        n_pt_descs = itf.GetParameterLength(idx_pt_descs)
+        if n_pt_descs < n_pt_used:
+            for i in range(n_pt_descs, n_pt_used):
+                ret = itf.AddParameterData(idx_pt_descs, 1)
+                descs_len = itf.GetParameterLength(idx_pt_descs)
+                var_desc = win32.VARIANT(pythoncom.VT_BSTR, str(descs_len))
+                ret = itf.SetParameterValue(idx_pt_descs, descs_len-1, var_desc)
+        elif n_pt_descs > n_pt_used:
+            pt_descs = []
+            for i in range(n_pt_used):
+                pt_descs.apppend(itf.GetParameterValue(idx_pt_descs, i))
+            num_desc_chars = [len(x) for x in pt_descs]
+            size_desc = max(num_desc_chars)
+            par_desc = itf.GetParameterDescription(idx_pt_descs)
+            par_type = itf.GetParameterType(idx_pt_descs)
+            par_num_dim = itf.GetParameterNumberDim(idx_pt_descs)
+            par_dim = [size_desc, n_pt_used]
+            var_par_dim = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_dim)
+            # Use a pure python list of strings for pythoncom.VT_ARRAY|pythoncom.VT_BSTR instead of a ndarray
+            var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, pt_descs)
+            # Delete existing POINT:DESCRIPTIONS
+            ret = [False, True][itf.DeleteParameter(idx_pt_descs)]
+            if not ret:
+                err_msg = 'Failed to delete existing POINT:DESCRIPTIONS parameter'
+                raise RuntimeError(err_msg)
+            # Create new POINT:DESCRIPTIONS
+            idx_pt_descs = itf.AddParameter('DESCRIPTIONS', par_desc, 'POINT', np.uint8(0), par_type, par_num_dim, var_par_dim, var_par_data)
+            if idx_pt_descs == -1:
+                err_msg = 'Failed to create new POINT:LABELS parameter'
+                raise RuntimeError(err_msg)            
+        # Step1: process POINT:LABELS
+        idx_pt_used = itf.GetParameterIndex('POINT', 'USED')
+        n_pt_used = itf.GetParameterValue(idx_pt_used, 0)        
+        idx_pt_labels = itf.GetParameterIndex('POINT', 'LABELS')
+        n_pt_labels = itf.GetParameterLength(idx_pt_labels)        
+        if n_pt_labels < n_pt_used:
+            err_msg = 'Number of item under POINT:LABELS is less than POINT:USED'
+            raise RuntimeError(err_msg)
+        elif n_pt_labels > n_pt_used:
+            pt_labels = []
+            for i in range(n_pt_used):
+                pt_labels.append(itf.GetParameterValue(idx_pt_labels, i))
+            # pt_labels_byte = [str.encode(x) for x in pt_labels]
+            # pt_labels_dummy = [' '*size_label]*n_pt_used
+            num_label_chars = [len(x) for x in pt_labels]
+            size_label = max(num_label_chars)*2
+            par_desc = itf.GetParameterDescription(idx_pt_labels)
+            par_type = itf.GetParameterType(idx_pt_labels)
+            par_num_dim = itf.GetParameterNumberDim(idx_pt_labels)
+            par_dim = [size_label, n_pt_used]
+            var_par_dim = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_dim)
+            # Use a pure python list of strings for pythoncom.VT_ARRAY|pythoncom.VT_BSTR instead of a ndarray
+            var_par_data = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_BSTR, pt_labels)
+            # Delete existing POINT:LABELS
+            ret = [False, True][itf.DeleteParameter(idx_pt_labels)]
+            if not ret:
+                err_msg = 'Failed to delete existing POINT:LABELS parameter'
+                raise RuntimeError(err_msg)             
+            # Create new POINT:LABELS
+            idx_pt_labels = itf.AddParameter('LABELS', par_desc, 'POINT', np.uint8(0), par_type, par_num_dim, var_par_dim, var_par_data)
+            if idx_pt_labels == -1:
+                err_msg = 'Failed to create new POINT:LABELS parameter'
+                raise RuntimeError(err_msg)
+
+            
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise    
+    
 def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, log=False):
     """
     Add a new marker into an open C3D file.
@@ -2524,7 +2603,7 @@ def recover_marker_rel(itf, tgt_mkr_name, cl_mkr_names, log=False):
         vec_z = vec2_unit
         vec_x = vec0_unit
         vec_y = np.cross(vec_z, vec_x)
-        mat_rot = np.array([vec_x.T, vec_y.T, vec_z.T]).T
+        mat_rot = np.asarray([vec_x.T, vec_y.T, vec_z.T]).T
         tgt_mkr_coords_rel = np.einsum('ij,ijk->ik', (tgt_mkr_coords-p0)[all_mkr_valid_mask], mat_rot[all_mkr_valid_mask])
         tgt_mkr_coords_recovered = np.zeros((cl_mkr_only_valid_frs.size, 3), dtype=np.float32)
         for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
@@ -2650,7 +2729,7 @@ def recover_marker_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
         vec_z = vec2_unit
         vec_x = vec0_unit
         vec_y = np.cross(vec_z, vec_x)
-        mat_rot = np.array([vec_x.T, vec_y.T, vec_z.T]).T
+        mat_rot = np.asarray([vec_x.T, vec_y.T, vec_z.T]).T
         for idx, fr in np.ndenumerate(cl_mkr_only_valid_frs):
             search_idx = np.searchsorted(all_mkr_valid_frs, fr)
             if search_idx == 0:
