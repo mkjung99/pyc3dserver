@@ -2332,8 +2332,10 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, adjust_
         A numpy array of new marker coordinates. This is assumed as a scaled one.
     mkr_resid : numpy array or None, optional
         A numpy array of new marker residuals. The default is None.
-    mkr_desc: str or None, optional
+    mkr_desc : str or None, optional
         Description of a new marker.
+    adjust_params : bool, optional
+        Whether to adjust the lengths of other related parameters. The default is False.
     log : bool, optional
         Whether to write logs or not. The default is False.
 
@@ -2487,6 +2489,8 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
         A new analog channel gain. The default is 0.
     sig_desc : str, optional
         A new analog channel description. The default is None.
+    adjust_params : bool, optional
+        Whether to adjust the lengths of other related parameters. The default is False.        
     log : bool, optional
         Whether to write logs or not. The default is False.
 
