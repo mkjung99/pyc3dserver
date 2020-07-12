@@ -2866,7 +2866,7 @@ def recover_marker_rel(itf, tgt_mkr_name, cl_mkr_names, log=False):
         update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
         update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
         n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if log: logger.info(f'Recovery of "{tgt_mkr_name}" is finished')
+        if log: logger.info(f'Recovery of "{tgt_mkr_name}" finished')
         return True, n_tgt_mkr_valid_frs_updated
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -2998,7 +2998,7 @@ def recover_marker_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
         update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
         update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
         n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-        if log: logger.info(f'Recovery of "{tgt_mkr_name}" is finished')
+        if log: logger.info(f'Recovery of "{tgt_mkr_name}" finished')
         return True, n_tgt_mkr_valid_frs_updated
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -3120,10 +3120,10 @@ def fill_marker_gap_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
             update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
             update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
             n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is finished')
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" finished')
             return True, n_tgt_mkr_valid_frs_updated
         else:
-            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is skipped')
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped')
             return False, n_tgt_mkr_valid_frs
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -3221,10 +3221,10 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
             update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, log=log)
             update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, log=log)
             n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is finished')
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" finished')
             return True, n_tgt_mkr_valid_frs_updated
         else:
-            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is skipped')
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped')
             return False, n_tgt_mkr_valid_frs
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -3317,10 +3317,10 @@ def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_nee
             update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
             update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
             n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
-            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is finished')
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" finished')
             return True, n_tgt_mkr_valid_frs_updated
         else:
-            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" is skipped')
+            if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped')
             return False, n_tgt_mkr_valid_frs
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
