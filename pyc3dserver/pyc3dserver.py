@@ -2431,12 +2431,14 @@ def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, adjust_
         dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
         dtype_arr = pythoncom.VT_ARRAY|dtype
         for i in range(3):
-            var_pos = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
+            # var_pos = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
+            var_pos = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i].tolist())
             ret = itf.SetPointDataEx(n_mkrs-1, i, start_fr, var_pos)
             if ret == 0:
                 err_msg = f'Failed to set the data for a new marker'
                 raise RuntimeError(err_msg)
-        var_resid = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, mkr_resid_adjusted)
+        # var_resid = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, mkr_resid_adjusted)
+        var_resid = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, mkr_resid_adjusted.tolist())
         ret = itf.SetPointDataEx(n_mkrs-1, 3, start_fr, var_resid)
         if ret == 0:
             err_msg = f'Failed to set the data for a new marker'
@@ -2577,7 +2579,9 @@ def add_analog(itf, sig_name, sig_value, sig_unit, sig_scale=1.0, sig_offset=0, 
         # n_an_chs = itf.GetAnalogChannels()
         gen_scale = get_analog_gen_scale(itf, log=log)
         sig_value_unscaled = np.asarray(sig_value, dtype=np.float32)/(np.float32(sig_scale)*gen_scale)+np.float32(sig_offset_dtype(sig_offset))
-        ret = itf.SetAnalogDataEx(idx_new_an_ch, start_fr, win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled))
+        # variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled)
+        variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled.tolist())
+        ret = itf.SetAnalogDataEx(idx_new_an_ch, start_fr, variant)
         # Increase the value 'ANALOG:USED' by 1
         idx_an_used = itf.GetParameterIndex('ANALOG', 'USED')
         n_an_used_after = itf.GetParameterValue(idx_an_used, 0)
@@ -2685,7 +2689,8 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
         dtype = [pythoncom.VT_I2, pythoncom.VT_R4][is_c3d_float]
         dtype_arr = pythoncom.VT_ARRAY|dtype
         for i in range(3):
-            variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
+            # variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i])
+            variant = win32.VARIANT(dtype_arr, mkr_coords_unscaled[:,i].tolist())
             ret = itf.SetPointDataEx(mkr_idx, i, start_fr, variant)
         var_const = win32.VARIANT(dtype, 1)
         for i in range(3):
@@ -2741,7 +2746,8 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
             raise ValueError(err_msg)        
         dtype = pythoncom.VT_R4
         dtype_arr = pythoncom.VT_ARRAY|dtype
-        variant = win32.VARIANT(dtype_arr, mkr_resid)
+        # variant = win32.VARIANT(dtype_arr, mkr_resid)
+        variant = win32.VARIANT(dtype_arr, mkr_resid.tolist())
         ret = itf.SetPointDataEx(mkr_idx, 3, start_fr, variant)
         var_const = win32.VARIANT(dtype, 1)
         for idx, val in enumerate(mkr_resid):
