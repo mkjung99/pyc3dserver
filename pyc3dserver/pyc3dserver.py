@@ -1456,7 +1456,7 @@ def get_group_params(itf, grp_name, par_names, log=False):
         for name in par_names:
             par_idx = itf.GetParameterIndex(grp_name, name)
             if par_idx == -1:
-                if log: logger.warning(f'No "{name}" parameter under "{grp_name}" group')
+                if log: logger.warning(f'{grp_name}:{name} does not exist')
                 continue
             par_name = itf.GetParameterName(par_idx)
             par_len = itf.GetParameterLength(par_idx)
@@ -1468,7 +1468,8 @@ def get_group_params(itf, grp_name, par_names, log=False):
             for j in range(par_len):
                 par_data.append(itf.GetParameterValue(par_idx, j))
             if par_type == -1:
-                if len(par_data) == 1:
+                # if len(par_data) == 1:
+                if par_num_dim <= 1:
                     dict_info[par_name] = data_type(par_data[0])
                 else:
                     dict_info[par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
@@ -1576,7 +1577,8 @@ def get_dict_groups(itf, tgt_grp_names=None, log=False):
                 for j in range(par_len):
                     par_data.append(itf.GetParameterValue(i, j))
             if par_type == -1:
-                if len(par_data) == 1:
+                # if len(par_data) == 1:
+                if par_num_dim <= 1:
                     dict_grps[grp_name][par_name] = data_type(par_data[0])
                 else:
                     dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
