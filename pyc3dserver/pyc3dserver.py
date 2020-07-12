@@ -2049,11 +2049,11 @@ def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
         if log: logger.error(err)
         raise
 
-def resize_str_type_param(itf, grp_name, param_name, new_str_len, log=False):
+def resize_char_type_param(itf, grp_name, param_name, new_str_len, log=False):
     """
-    Resisze a string(char) type parameter's first dimension.
+    Resisze a char type parameter's first dimension.
     
-    This function only works with 2 dimensional string(char) parameters.
+    This function only works with 2 dimensional char type parameters.
     
     Parameters
     ----------
@@ -2081,7 +2081,7 @@ def resize_str_type_param(itf, grp_name, param_name, new_str_len, log=False):
             raise ValueError(err_msg)
         par_type = itf.GetParameterType(idx_par)
         if par_type != -1:
-            err_msg = '{grp_name}:{param_name} is not a string type parameter'
+            err_msg = '{grp_name}:{param_name} is not a char type parameter'
             raise ValueError(err_msg)
         par_num_dim = itf.GetParameterNumberDim(idx_par)
         if par_num_dim != 2:
