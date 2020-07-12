@@ -2164,15 +2164,22 @@ def adjust_param_items(itf, grp_name, param_name, recreate_param=False, keep_str
             n_used = itf.GetParameterValue(idx_used, 0)
             idx_par = itf.GetParameterIndex(grp_name, param_name)
             n_par = itf.GetParameterLength(idx_par)
+            desc_len_max = itf.GetParameterDimension(idx_par, 0)
             if n_par == n_used:
                 if log: logger.debug(f'{grp_name}:{param_name} has as same number of items as {grp_name}:USED')
                 return False            
             elif n_par < n_used:
+                if log: logger.debug(f'{grp_name}:{param_name} has fewer items than {grp_name}:USED')
+                # for i in range(n_par, n_used):
+                #     ret = itf.AddParameterData(idx_par, 1)
+                #     par_len = itf.GetParameterLength(idx_par)
+                #     var_desc = win32.VARIANT(pythoncom.VT_BSTR, str(par_len))
+                #     ret = itf.SetParameterValue(idx_par, par_len-1, var_desc)
+                ret = itf.AddParameterData(idx_par, n_used-n_par)
                 for i in range(n_par, n_used):
-                    ret = itf.AddParameterData(idx_par, 1)
-                    par_len = itf.GetParameterLength(idx_par)
-                    var_desc = win32.VARIANT(pythoncom.VT_BSTR, str(par_len))
-                    ret = itf.SetParameterValue(idx_par, par_len-1, var_desc)
+                    str_desc = str(i+1) if len(str(i+1)) <= desc_len_max else ''
+                    var_desc = win32.VARIANT(pythoncom.VT_BSTR, str_desc)
+                    ret = itf.SetParameterValue(idx_par, i, var_desc)                    
             else:
                 if log: logger.debug(f'{grp_name}:{param_name} has more items than {grp_name}:USED, so all unused items will be deleted')
                 if recreate_param:
