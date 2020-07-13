@@ -178,7 +178,7 @@ def open_c3d(itf, f_path, strict_param_check=False, log=False):
         else:
             itf.SetStrictParameterChecking(0)
         if ret == 0:
-            if log: logger.info(f'File is opened successfully')
+            if log: logger.info(f'File is opened')
             return True
         else:
             err_msg = f'File can not be opened'
@@ -2324,6 +2324,162 @@ def auto_adjust_params(itf, recreate_param=False, keep_str_len=True, log=False):
     except RuntimeError as err:
         if log: logger.error(err)
         raise
+
+def add_group(itf, grp_name, grp_desc=None, grp_lock=False, log=False):
+    """
+    Add a group.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    grp_name : str
+        Group name.
+    grp_desc : str, optional
+        Group description. The default is None.
+    grp_lock : bool, optional
+        Whether to lock the group or not. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    ret : int
+        The index of newly created group.
+
+    """
+    try:
+        desc = '' if grp_desc is None else grp_desc
+        lock = ['0', '1'][grp_lock]
+        ret = itf.AddGroup(0, grp_name, desc, lock)
+        if ret == -1:
+            err_msg = 'Group could not be added'
+            raise RuntimeError(err_msg)
+        else:
+            return ret            
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise        
+
+def add_param(itf, grp_name, param_name, param_data, param_desc=None, make_new_grp=False, log=False):
+    """
+    Add a parameter under the specified group.
+    
+    This function only supports string, integer and float data types.
+    Parameter data should be in form of either single value or 1-d array like strctures (list, tuple, numpy array).
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    grp_name : str
+        Group name.
+    param_name : str
+        Parameter name.
+    param_data : str, int, float, list, tuple, ndarray
+        Parameter data. This argument should be either single value or 1 dimensional list, tuple, numpy array.
+    param_desc : str, optional
+        Parameter description. The default is None.
+    make_new_grp : bool, optional
+        Whether to make a new group if the given group name does not exist. The default is False.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    ret : int
+        The index of newly created parameter.
+
+    """
+    try:
+        idx_grp = itf.GetGroupIndex(grp_name)
+        if idx_grp == -1:
+            if make_new_grp:
+                # itf.AddGroup(0, grp_name, '', '0')
+                add_group(itf, grp_name, grp_lock=False, log=log)
+            else:
+                err_msg = f'"{grp_name}" group does not exist'
+                raise RuntimeError(err_msg)
+        idx_par = itf.GetParameterIndex(grp_name, param_name)
+        if idx_par != -1:
+            err_msg = f'"{grp_name}:{param_name}" parameter already exists'
+            raise RuntimeError(err_msg)
+        par_data_type = type(param_data)
+        if par_data_type == str:
+            par_dtype = -1
+            par_num_dim = 2
+            par_dim = [len(param_data), 1]
+            par_data = [param_data]
+            var_par_dtype = pythoncom.VT_ARRAY|pythoncom.VT_BSTR
+        elif par_data_type == int:
+            par_dtype = 2
+            par_num_dim = 0
+            par_dim = []
+            par_data = [param_data]
+            var_par_dtype = pythoncom.VT_ARRAY|pythoncom.VT_I2
+        elif par_data_type == float:
+            par_dtype = 4
+            par_num_dim = 0
+            par_dim = []
+            par_data = [param_data]
+            var_par_dtype = pythoncom.VT_ARRAY|pythoncom.VT_R4
+        elif par_data_type==list or par_data_type==tuple or par_data_type==np.ndarray:
+            if par_data_type==list or par_data_type==tuple:
+                par_data = list(param_data)
+            elif par_data_type == np.ndarray:
+                par_data = param_data.tolist()
+            if all(isinstance(x, str) for x in par_data):
+                par_dtype = -1
+                par_num_dim = 2
+                par_dim = []
+                par_dim.append(max([len(x) for x in par_data]))
+                par_dim.append(len(par_data))
+                var_par_dtype = pythoncom.VT_ARRAY|pythoncom.VT_BSTR
+            elif all(isinstance(x, int) for x in par_data):
+                par_dtype = 2
+                par_num_dim = 1
+                par_dim = []
+                par_dim.append(len(par_data))
+                var_par_dtype = pythoncom.VT_ARRAY|pythoncom.VT_I2
+            elif all(isinstance(x, float) for x in par_data):
+                par_dtype = 4
+                par_num_dim = 1
+                par_dim = []
+                par_dim.append(len(par_data))
+                var_par_dtype = pythoncom.VT_ARRAY|pythoncom.VT_R4
+            elif any(isinstance(x, float) for x in par_data) and all(~isinstance(x, str) for x in par_data):
+                par_dtype = 4
+                par_num_dim = 1
+                par_dim = []
+                par_dim.append(len(par_data))
+                var_par_dtype = pythoncom.VT_ARRAY|pythoncom.VT_R4                
+            else:
+                err_msg = 'Unsupported data type'
+                raise ValueError(err_msg)
+        else:
+            err_msg = 'Unsupported data type'
+            raise ValueError(err_msg)
+        var_par_dim = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_I2, par_dim)
+        var_par_data = win32.VARIANT(var_par_dtype, par_data)
+        par_desc = '' if param_desc is None else param_desc
+        ret = itf.AddParameter(param_name, par_desc, grp_name, np.uint8(0), par_dtype, par_num_dim, var_par_dim, var_par_data)
+        if ret == -1:
+            err_msg = 'Parameter could not be added'
+            raise RuntimeError(err_msg)
+        else:
+            return ret
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+    except RuntimeError as err:
+        if log: logger.error(err)
+        raise        
     
 def add_marker(itf, mkr_name, mkr_coords, mkr_resid=None, mkr_desc=None, adjust_params=False, log=False):
     """
