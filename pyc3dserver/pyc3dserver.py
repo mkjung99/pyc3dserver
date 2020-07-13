@@ -3296,7 +3296,7 @@ def fill_marker_gap_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
         if log: logger.error(err)
         raise        
 
-def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
+def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, search_span_offset=5, min_needed_frs=10, log=False):
     """
     Fill the gaps in a given target marker coordinates using the donor marker coordinates by linear interpolation.
 
@@ -3308,6 +3308,10 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
         Target marker name.
     dnr_mkr_name : str
         Donor marker name.
+    search_span_offset : int, optional
+        Offset for backward and forward search spans. The default is 5.
+    min_needed_frs : int, optional
+        Minimum required valid frames in both search spans. The default is 10.        
     log : bool, optional
         Whether to write logs or not. The default is False.
 
@@ -3320,7 +3324,7 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
 
     Notes
     -----
-    This function is adapted from 'fill_marker_gap_pattern2()' function in the GapFill module, see [1] in the References.   
+    This function is adapted from 'fill_marker_gap_pattern()' function in the GapFill module, see [1] in the References.   
     
     References
     ----------
@@ -3358,29 +3362,47 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, log=False):
         if not np.any(both_mkr_valid_mask):
             if log: logger.info(f'Gap filling of "{tgt_mkr_name}" skipped: no valid common frame between target and donor markers')
             return False, n_tgt_mkr_valid_frs        
-        b_updated = False
         tgt_mkr_invalid_frs = np.where(~tgt_mkr_valid_mask)[0]
-        both_mkr_valid_frs = np.where(both_mkr_valid_mask)[0]
-        for idx, fr in np.ndenumerate(tgt_mkr_invalid_frs):
-            search_idx = np.searchsorted(both_mkr_valid_frs, fr)
-            if search_idx == 0:
-                fr0 = both_mkr_valid_frs[0]
-                fr1 = both_mkr_valid_frs[1]
-            elif search_idx >= both_mkr_valid_frs.shape[0]:
-                fr0 = both_mkr_valid_frs[both_mkr_valid_frs.shape[0]-2]
-                fr1 = both_mkr_valid_frs[both_mkr_valid_frs.shape[0]-1]
-            else:
-                fr0 = both_mkr_valid_frs[search_idx-1]
-                fr1 = both_mkr_valid_frs[search_idx]
-            if fr <= fr0 or fr >= fr1: continue
-            if ~dnr_mkr_valid_mask[fr0] or ~dnr_mkr_valid_mask[fr1]: continue
-            if np.any(~dnr_mkr_valid_mask[fr0:fr1+1]): continue    
-            v_tgt = (tgt_mkr_coords[fr1]-tgt_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+tgt_mkr_coords[fr0]
-            v_dnr = (dnr_mkr_coords[fr1]-dnr_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+dnr_mkr_coords[fr0]
-            # new_coords = v_tgt-v_dnr+dnr_mkr_coords[fr]      
-            tgt_mkr_coords[fr] = v_tgt-v_dnr+dnr_mkr_coords[fr]
-            tgt_mkr_resid[fr] = 0.0        
-            b_updated = True
+        tgt_mkr_invalid_gaps = np.split(tgt_mkr_invalid_frs, np.where(np.diff(tgt_mkr_invalid_frs)!=1)[0]+1)
+        b_updated = False
+        for gap in tgt_mkr_invalid_gaps:
+            # Skip if gap size is zero
+            if gap.size == 0: continue
+            # Skip if gap is either at the first or at the end of the entire frames.
+            if gap.min()==0 or gap.max()==n_total_frs-1: continue
+            search_span = np.int(np.ceil(gap.size/2))+search_span_offset
+            gap_near_tgt_mkr_valid_mask = np.zeros((n_total_frs,), dtype=bool)
+            for i in range(gap.min()-1, gap.min()-1-search_span, -1):
+                if i >= 0: gap_near_tgt_mkr_valid_mask[i]=True
+            for i in range(gap.max()+1, gap.max()+1+search_span, 1):
+                if i < n_total_frs: gap_near_tgt_mkr_valid_mask[i]=True
+            gap_near_tgt_mkr_valid_mask = np.logical_and(gap_near_tgt_mkr_valid_mask, tgt_mkr_valid_mask)
+            # Skip if total number of available target marker frames near the gap within search span is less then minimum required number.
+            if np.sum(gap_near_tgt_mkr_valid_mask) < min_needed_frs: continue
+            # Skip if there is any invalid frame of the donor marker during the gap period.
+            if np.any(~dnr_mkr_valid_mask[gap]): continue
+            gap_near_both_mkr_valid_mask = np.logical_and(gap_near_tgt_mkr_valid_mask, dnr_mkr_valid_mask)
+            gap_near_both_mkr_valid_frs = np.where(gap_near_both_mkr_valid_mask)[0]
+            for idx, fr in np.ndenumerate(gap):
+                search_idx = np.searchsorted(gap_near_both_mkr_valid_frs, fr)
+                if search_idx == 0:
+                    fr0 = gap_near_both_mkr_valid_frs[0]
+                    fr1 = gap_near_both_mkr_valid_frs[1]
+                elif search_idx >= gap_near_both_mkr_valid_frs.shape[0]:
+                    fr0 = gap_near_both_mkr_valid_frs[gap_near_both_mkr_valid_frs.shape[0]-2]
+                    fr1 = gap_near_both_mkr_valid_frs[gap_near_both_mkr_valid_frs.shape[0]-1]
+                else:
+                    fr0 = gap_near_both_mkr_valid_frs[search_idx-1]
+                    fr1 = gap_near_both_mkr_valid_frs[search_idx]
+                # Skip if the target marker frame fr is outside of range.
+                if fr <= fr0 or fr >= fr1: continue
+                # Skip if the donor marker is invalid at either fr0 or fr1.
+                if ~dnr_mkr_valid_mask[fr0] or ~dnr_mkr_valid_mask[fr1]: continue
+                v_tgt = (tgt_mkr_coords[fr1]-tgt_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+tgt_mkr_coords[fr0]
+                v_dnr = (dnr_mkr_coords[fr1]-dnr_mkr_coords[fr0])*np.float32(fr-fr0)/np.float32(fr1-fr0)+dnr_mkr_coords[fr0]
+                tgt_mkr_coords[fr] = v_tgt-v_dnr+dnr_mkr_coords[fr]
+                tgt_mkr_resid[fr] = 0.0
+                b_updated = True
         if b_updated:
             update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, log=log)
             update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, log=log)
