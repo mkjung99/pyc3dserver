@@ -65,6 +65,8 @@ You can find some examples [here](https://github.com/mkjung99/pyc3dserver_exampl
 PyC3Dserver tries to implement some useful functions using C3Dserver internally, but it does not cover full potential features of C3Dserver.
 You can develop your own functions using the COM object of C3Dserver in Python.
 
+And PyC3Dserver is under heavy development so that many things may change during this period.
+
 ## Dependencies
 - PyWin32: ([GitHub](https://github.com/mhammond/pywin32), [PyPI](https://pypi.org/project/pywin32/), [Anaconda](https://anaconda.org/anaconda/pywin32))
 - NumPy: ([Website](https://numpy.org/), [PyPI](https://pypi.org/project/numpy/), [Anaconda](https://anaconda.org/anaconda/numpy))
