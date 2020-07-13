@@ -2053,7 +2053,7 @@ def change_analog_name(itf, sig_name_old, sig_name_new, log=False):
 
 def resize_char_type_param(itf, grp_name, param_name, new_str_len, log=False):
     """
-    Resisze a char type parameter's first dimension.
+    Resize a char type parameter's first dimension.
     
     This function only works with 2 dimensional char type parameters.
     
@@ -2288,7 +2288,7 @@ def adjust_param_items(itf, grp_name, param_name, recreate_param=False, keep_str
     
 def auto_adjust_params(itf, recreate_param=False, keep_str_len=True, log=False):
     """
-    Adjust several group parameters' items automatically, espcially for POINT and ANALOG groups.
+    Adjust several group parameters' items automatically, especially for POINT and ANALOG groups.
 
     Parameters
     ----------
