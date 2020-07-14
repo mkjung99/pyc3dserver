@@ -1429,7 +1429,7 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log
         if log: logger.error(err.excepinfo[2])
         raise
         
-def get_group_params(itf, grp_name, par_names, log=False):
+def get_group_params(itf, grp_name, par_names, desc=False, log=False):
     """
     Return desired parameter values under a specific group.
 
@@ -1441,6 +1441,8 @@ def get_group_params(itf, grp_name, par_names, log=False):
         Target group name.
     par_names : list
         Target parameter names.
+    desc : bool, optional
+        Whether to include the descriptions of group parameters. The default is False.        
     log : bool, optional
         Whether to write logs or not. The default is False.
 
@@ -1459,26 +1461,41 @@ def get_group_params(itf, grp_name, par_names, log=False):
                 if log: logger.warning(f'{grp_name}:{name} does not exist')
                 continue
             par_name = itf.GetParameterName(par_idx)
+            if desc:
+                par_desc = itf.GetParameterDescription(par_idx)
             par_len = itf.GetParameterLength(par_idx)
             par_type = itf.GetParameterType(par_idx)
             data_type = dict_dtype.get(par_type, None)
             par_num_dim = itf.GetParameterNumberDim(par_idx)
             par_dim = [itf.GetParameterDimension(par_idx, j) for j in range(par_num_dim)]
             par_data = []
-            for j in range(par_len):
-                par_data.append(itf.GetParameterValue(par_idx, j))
+            if grp_name=='ANALOG' and par_name=='OFFSET':
+                sig_format = get_analog_format(itf, log=log)
+                is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
+                pre_dtype = [np.int16, np.uint16][is_sig_unsigned]
+                for j in range(par_len):
+                    par_data.append(pre_dtype(itf.GetParameterValue(par_idx, j)))
+            else:
+                for j in range(par_len):
+                    par_data.append(itf.GetParameterValue(par_idx, j))
             if par_type == -1:
                 # if len(par_data) == 1:
                 if par_num_dim <= 1:
-                    dict_info[par_name] = data_type(par_data[0])
+                    par_val = data_type(par_data[0])
                 else:
-                    dict_info[par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
+                    par_val = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
             else:
                 # if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
                 if par_num_dim == 0:
-                    dict_info[par_name] = data_type(par_data[0])
+                    par_val = data_type(par_data[0])
                 else:
-                    dict_info[par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+                    par_val = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+            if desc:
+                dict_info[par_name] = {}
+                dict_info[par_name].update({'VAL': par_val})
+                dict_info[par_name].update({'DESC': par_desc})
+            else:
+                dict_info[par_name] = par_val
         return dict_info
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1522,7 +1539,7 @@ def get_dict_header(itf, log=False):
         if log: logger.error(err.excepinfo[2])
         raise    
 
-def get_dict_groups(itf, tgt_grp_names=None, log=False):
+def get_dict_groups(itf, desc=False, tgt_grp_names=None, log=False):
     """
     Return the dictionary of the groups.
 
@@ -1532,6 +1549,8 @@ def get_dict_groups(itf, tgt_grp_names=None, log=False):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
+    desc : bool, optional
+        Whether to include the descriptions of group parameters. The default is False.        
     tgt_grp_names: list or tuple, optional
         Target group names to extract. The default is None.
     log : bool, optional
@@ -1561,6 +1580,8 @@ def get_dict_groups(itf, tgt_grp_names=None, log=False):
             if grp_name is None: continue
             if (tgt_grp_names is not None) and (grp_name not in tgt_grp_names): continue
             par_name = itf.GetParameterName(i)
+            if desc: 
+                par_desc = itf.GetParameterDescription(i)
             par_len = itf.GetParameterLength(i)
             par_type = itf.GetParameterType(i)
             data_type = dict_dtype.get(par_type, None)
@@ -1579,15 +1600,21 @@ def get_dict_groups(itf, tgt_grp_names=None, log=False):
             if par_type == -1:
                 # if len(par_data) == 1:
                 if par_num_dim <= 1:
-                    dict_grps[grp_name][par_name] = data_type(par_data[0])
+                    par_val = data_type(par_data[0])
                 else:
-                    dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
+                    par_val = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1][:-1])
             else:
                 # if par_num_dim==0 or (par_num_dim==1 and par_dim[0]==1):
                 if par_num_dim == 0:
-                    dict_grps[grp_name][par_name] = data_type(par_data[0])
+                    par_val = data_type(par_data[0])
                 else:
-                    dict_grps[grp_name][par_name] = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+                    par_val = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+            if desc:
+                dict_grps[grp_name][par_name] = {}
+                dict_grps[grp_name][par_name].update({'VAL': par_val})
+                dict_grps[grp_name][par_name].update({'DESC': par_desc})
+            else:
+                dict_grps[grp_name][par_name] = par_val
         return dict_grps
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
