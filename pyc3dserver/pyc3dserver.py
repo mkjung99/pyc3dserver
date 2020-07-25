@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, Dario Farina'
-__version__ = '0.0.11'
+__version__ = '0.0.12'
 
 import os
 import pythoncom
@@ -435,7 +435,7 @@ def check_frame_range_valid(itf, start_frame=None, end_frame=None, log=False):
                 err_msg = f'"end_frame" should be equal or less than {last_fr}'
                 raise ValueError(err_msg)
             end_fr = end_frame
-        if not (start_fr < end_fr):
+        if not (start_fr <= end_fr):
             err_msg = f'"end_frame" should be greater than "start_frame"'
             raise ValueError(err_msg)
         return True, start_fr, end_fr
@@ -853,9 +853,14 @@ def get_marker_data(itf, mkr_name, blocked_nan=False, start_frame=None, end_fram
             return None
         n_frs = end_fr-start_fr+1
         mkr_data = np.full((n_frs, 4), np.nan, dtype=np.float32)
-        for i in range(3):
-            mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '1'), dtype=np.float32)
-        mkr_data[:,3] = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+        if start_fr == end_fr:
+            for i in range(3):
+                mkr_data[:,i] = np.asarray(itf.GetPointData(mkr_idx, i, start_fr, '1'), dtype=np.float32)
+            mkr_data[:,3] = np.asarray(itf.GetPointResidual(mkr_idx, start_fr), dtype=np.float32)
+        else:
+            for i in range(3):
+                mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '1'), dtype=np.float32)
+            mkr_data[:,3] = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
         if blocked_nan:
             mkr_null_masks = np.where(np.isclose(mkr_data[:,3], -1), True, False)
             mkr_data[mkr_null_masks,0:3] = np.nan 
@@ -918,10 +923,17 @@ def get_marker_pos(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=No
         mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
         mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
         b_scaled = ['0', '1'][scaled]
-        for i in range(3):
-            mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, b_scaled), dtype=mkr_dtype)
+        if start_fr == end_fr:
+            for i in range(3):
+                mkr_data[:,i] = np.asarray(itf.GetPointData(mkr_idx, i, start_fr, b_scaled), dtype=mkr_dtype)
+        else:
+            for i in range(3):
+                mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, b_scaled), dtype=mkr_dtype)
         if blocked_nan:
-            mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+            if start_fr == end_fr:
+                mkr_resid = np.asarray(itf.GetPointResidual(mkr_idx, start_fr), dtype=np.float32)
+            else:
+                mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
             mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
             mkr_data[mkr_null_masks,:] = np.nan  
         return mkr_data
@@ -987,13 +999,23 @@ def get_marker_pos2(itf, mkr_name, blocked_nan=False, scaled=True, start_frame=N
         mkr_dtype = [[[np.int16, np.float32][is_c3d_float], np.float32][scaled], np.float32][blocked_nan]
         mkr_data = np.zeros((n_frs, 3), dtype=mkr_dtype)
         scale_size = [np.fabs(mkr_scale), np.float32(1.0)][is_c3d_float]
-        for i in range(3):
-            if scaled:
-                mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)*scale_size
+        if start_fr == end_fr:
+            for i in range(3):
+                if scaled:
+                    mkr_data[:,i] = np.asarray(itf.GetPointData(mkr_idx, i, start_fr, '0'), dtype=mkr_dtype)*scale_size
+                else:
+                    mkr_data[:,i] = np.asarray(itf.GetPointData(mkr_idx, i, start_fr, '0'), dtype=mkr_dtype)                
+        else:
+            for i in range(3):
+                if scaled:
+                    mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)*scale_size
+                else:
+                    mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)
+        if blocked_nan:
+            if start_fr == end_fr:
+                mkr_resid = np.asarray(itf.GetPointResidual(mkr_idx, start_fr), dtype=np.float32)
             else:
-                mkr_data[:,i] = np.asarray(itf.GetPointDataEx(mkr_idx, i, start_fr, end_fr, '0'), dtype=mkr_dtype)
-        if blocked_nan:    
-            mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+                mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
             mkr_null_masks = np.where(np.isclose(mkr_resid, -1), True, False)
             mkr_data[mkr_null_masks,:] = np.nan            
         return mkr_data
@@ -1033,7 +1055,10 @@ def get_marker_resid(itf, mkr_name, start_frame=None, end_frame=None, log=False)
         if not fr_check:
             if log: logger.warning('No valid conditions for "start_frame" and "end_frame"')
             return None
-        mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
+        if start_fr == end_fr:
+            mkr_resid = np.asarray(itf.GetPointResidual(mkr_idx, start_fr), dtype=np.float32)
+        else:
+            mkr_resid = np.asarray(itf.GetPointResidualEx(mkr_idx, start_fr, end_fr), dtype=np.float32)
         return mkr_resid
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1344,7 +1369,13 @@ def get_analog_data_unscaled(itf, sig_name, start_frame=None, end_frame=None, lo
         if is_c3d_float != is_c3d_float2:
             if log: logger.debug(f'C3D data type is determined by POINT:SCALE')
         sig_dtype = [[np.int16, np.uint16][is_sig_unsigned], np.float32][is_c3d_float]
-        sig = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
+        if start_fr == end_fr:
+            av_ratio = get_analog_video_ratio(itf)
+            sig = np.zeros((av_ratio,), dtype=sig_dtype)
+            for i in range(av_ratio):
+                sig[i] = sig_dtype(itf.GetAnalogData(sig_idx, start_fr, i+1, '0', 0, 0, '0'))
+        else:
+            sig = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=sig_dtype)
         return sig
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1382,7 +1413,13 @@ def get_analog_data_scaled(itf, sig_name, start_frame=None, end_frame=None, log=
         if not fr_check:
             if log: logger.warning('No valid conditions for "start_frame" and "end_frame"')
             return None
-        sig = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
+        if start_fr == end_fr:
+            av_ratio = get_analog_video_ratio(itf)
+            sig = np.zeros((av_ratio,), dtype=np.float32)
+            for i in range(av_ratio):
+                sig[i] = np.float32(itf.GetAnalogData(sig_idx, start_fr, i+1, '1', 0, 0, '0'))
+        else:
+            sig = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '1', 0, 0, '0'), dtype=np.float32)
         return sig
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -1423,7 +1460,14 @@ def get_analog_data_scaled2(itf, sig_name, start_frame=None, end_frame=None, log
         gen_scale = get_analog_gen_scale(itf, log=log)
         sig_scale = get_analog_scale(itf, sig_name, log=log)
         sig_offset = np.float32(get_analog_offset(itf, sig_name, log=log))
-        sig = (np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-sig_offset)*sig_scale*gen_scale
+        if start_fr == end_fr:
+            av_ratio = get_analog_video_ratio(itf)
+            sig_data = np.zeros((av_ratio,), dtype=np.float32)
+            for i in range(av_ratio):
+                sig_data[i] = np.float32(itf.GetAnalogData(sig_idx, start_fr, i+1, '0', 0, 0, '0'))
+        else:
+            sig_data = np.asarray(itf.GetAnalogDataEx(sig_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)
+        sig = (sig_data-sig_offset)*sig_scale*gen_scale
         return sig
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -2819,9 +2863,9 @@ def delete_frames(itf, start_frame, num_frames, log=False):
         if log: logger.error(err)
         raise        
 
-def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
+def set_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, end_frame=None, log=False):
     """
-    Set the coordinates of a marker partially.
+    Set the coordinates of a marker.
 
     Parameters
     ----------
@@ -2831,8 +2875,10 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
         Marker name.
     mkr_coords : numpy array
         Marker coordinates.
-    start_frame : int
-        Frame number where setting will start.        
+    start_frame: None or int, optional
+        User-defined start frame. The default is None.
+    end_frame: None or int, optional
+        User-defined end frame. The default is None.        
     log : bool, optional
         Whether to write logs or not. The default is False.
 
@@ -2843,7 +2889,7 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
 
     """
     try:
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log=log)
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
         if not fr_check:
             err_msg = 'Given "start_frame" is not proper'
             raise ValueError(err_msg)
@@ -2891,9 +2937,9 @@ def update_marker_pos(itf, mkr_name, mkr_coords, start_frame=None, log=False):
         if log: logger.error(err)
         raise        
     
-def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
+def set_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, end_frame=None, log=False):
     """
-    Set the residual of a marker partially.
+    Set the residual of a marker.
 
     Parameters
     ----------
@@ -2903,8 +2949,10 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
         Marker name.
     mkr_resid : numpy array
         Marker residuals.
-    start_frame : int
-        Frame number where setting will start.            
+    start_frame: None or int, optional
+        User-defined start frame. The default is None.
+    end_frame: None or int, optional
+        User-defined end frame. The default is None.            
     log : bool, optional
         Whether to write logs or not. The default is False.
 
@@ -2915,7 +2963,7 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
 
     """
     try:
-        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, None, log=log)
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
         if not fr_check:
             err_msg = 'Given "start_frame" is not proper'
             raise ValueError(err_msg)        
@@ -2936,6 +2984,111 @@ def update_marker_resid(itf, mkr_name, mkr_resid, start_frame=None, log=False):
         for idx, val in enumerate(mkr_resid):
             if val == 1:
                 ret = itf.SetPointData(mkr_idx, 3, start_fr+idx, var_const) 
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+        
+def set_analog_data(itf, sig_name, sig_value, start_frame=None, end_frame=None, log=False):
+    """
+    Update the value of an analog channel.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    sig_name : str
+        Analog channel name.
+    sig_value : numpy array
+        A new analog channel value. This is assumed as a scaled one.        
+    start_frame: None or int, optional
+        User-defined start frame. The default is None.
+    end_frame: None or int, optional
+        User-defined end frame. The default is None. 
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+
+    """
+    try:
+        fr_check, start_fr, end_fr = check_frame_range_valid(itf, start_frame, end_frame, log=log)
+        if not fr_check:
+            err_msg = 'Given "start_frame" is not proper'
+            raise ValueError(err_msg)
+        n_frs = end_fr-start_fr+1
+        av_ratio = get_analog_video_ratio(itf, log=log)
+        if sig_value.ndim != 1 or sig_value.shape[0] != (n_frs*av_ratio):
+            err_msg = 'The dimension of the input is not compatible'
+            raise ValueError(err_msg)
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            err_msg = f'Unable to get the index of "{sig_name}"'
+            raise ValueError(err_msg)
+        gen_scale = get_analog_gen_scale(itf, log=log)
+        sig_scale = get_analog_scale(itf, sig_name, log=log)
+        sig_offset = np.float32(get_analog_offset(itf, sig_name, log=log))
+        sig_value_unscaled = np.asarray(sig_value, dtype=np.float32)/(sig_scale*gen_scale)+sig_offset
+        variant = win32.VARIANT(pythoncom.VT_ARRAY|pythoncom.VT_R4, sig_value_unscaled.tolist())
+        ret = itf.SetAnalogDataEx(sig_idx, start_fr, variant)
+        return [False, True][ret]
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    except ValueError as err:
+        if log: logger.error(err)
+        raise
+        
+def set_analog_subframe_data(itf, sig_name, sig_value, start_frame, sub_frame, log=False):
+    """
+    Update the value of analog channel subframe data.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    sig_name : str
+        Analog channel name.
+    sig_value : float
+        A new analog channel subframe value.
+    start_frame : int
+        Start frame number.
+    sub_frame : int
+        Sub frame number.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    bool
+        True or False.
+
+    """
+    try:
+        fr_check, start_fr, _ = check_frame_range_valid(itf, start_frame, None, log=log)
+        if not fr_check:
+            err_msg = 'Given "start_frame" is not proper'
+            raise ValueError(err_msg)
+        av_ratio = get_analog_video_ratio(itf, log=log)
+        if sub_frame < 1 or sub_frame > av_ratio:
+            err_msg = f'"sub_frame" should be between 1 and {av_ratio}'
+            raise ValueError(err_msg)
+        sig_idx = get_analog_index(itf, sig_name, log=log)
+        if sig_idx == -1 or sig_idx is None:
+            err_msg = f'Unable to get the index of "{sig_name}"'
+            raise ValueError(err_msg)
+        gen_scale = get_analog_gen_scale(itf, log=log)
+        sig_scale = get_analog_scale(itf, sig_name, log=log)
+        sig_offset = np.float32(get_analog_offset(itf, sig_name, log=log))
+        sig_value_unscaled = np.float32(sig_value)/(sig_scale*gen_scale)+sig_offset
+        variant = win32.VARIANT(pythoncom.VT_R4, sig_value_unscaled)
+        ret = itf.SetAnalogData(sig_idx, start_fr, sub_frame, variant)
         return [False, True][ret]
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
@@ -3054,8 +3207,8 @@ def recover_marker_rel(itf, tgt_mkr_name, cl_mkr_names, log=False):
             tgt_mkr_coords_recovered[idx] = p0[fr]+np.dot(mat_rot[fr], tgt_coords_rel)
         tgt_mkr_coords[cl_mkr_only_valid_mask] = tgt_mkr_coords_recovered
         tgt_mkr_resid[cl_mkr_only_valid_mask] = 0.0
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-        update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+        set_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, None, log=log)
+        set_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, None, log=log)
         n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
         if log: logger.info(f'Recovery of "{tgt_mkr_name}" finished')
         return True, n_tgt_mkr_valid_frs_updated
@@ -3186,8 +3339,8 @@ def recover_marker_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
                 vc = (b*vt_fr0+a*vt_fr1)/(a+b)
             tgt_mkr_coords[fr] = p0[fr]+vc
             tgt_mkr_resid[fr] = 0.0
-        update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-        update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+        set_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, None, log=log)
+        set_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, None, log=log)
         n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
         if log: logger.info(f'Recovery of "{tgt_mkr_name}" finished')
         return True, n_tgt_mkr_valid_frs_updated
@@ -3308,8 +3461,8 @@ def fill_marker_gap_rbt(itf, tgt_mkr_name, cl_mkr_names, log=False):
             tgt_mkr_resid[fr] = 0.0        
             b_updated = True        
         if b_updated:
-            update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-            update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+            set_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, None, log=log)
+            set_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, None, log=log)
             n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
             if log: logger.info(f'Gap filling of "{tgt_mkr_name}" finished')
             return True, n_tgt_mkr_valid_frs_updated
@@ -3431,8 +3584,8 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, search_span_offset=
                 tgt_mkr_resid[fr] = 0.0
                 b_updated = True
         if b_updated:
-            update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, log=log)
-            update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, log=log)
+            set_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, None, log=log)
+            set_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, None, log=log)
             n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
             if log: logger.info(f'Gap filling of "{tgt_mkr_name}" finished')
             return True, n_tgt_mkr_valid_frs_updated
@@ -3527,8 +3680,8 @@ def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_nee
                 tgt_mkr_resid[fr] = 0.0        
             b_updated = True            
         if b_updated:
-            update_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, log=log)
-            update_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, log=log)
+            set_marker_pos(itf, tgt_mkr_name, tgt_mkr_coords, None, None, log=log)
+            set_marker_resid(itf, tgt_mkr_name, tgt_mkr_resid, None, None, log=log)
             n_tgt_mkr_valid_frs_updated = np.count_nonzero(np.where(np.isclose(tgt_mkr_resid, -1), False, True))
             if log: logger.info(f'Gap filling of "{tgt_mkr_name}" finished')
             return True, n_tgt_mkr_valid_frs_updated
