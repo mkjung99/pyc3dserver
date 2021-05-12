@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, Dario Farina'
-__version__ = '0.0.12'
+__version__ = '0.1.0'
 
 import os
 import pythoncom
