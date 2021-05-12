@@ -31,6 +31,7 @@ import win32com.client as win32
 import math
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
+import re
 import logging
 
 logger_name = 'pyc3dserver'
@@ -1495,6 +1496,17 @@ def get_group_params(itf, grp_name, par_names, desc=False, log=False):
     dict_info : dict
         Dictionary of the desired paramters under a specific group.
 
+    Notes
+    -----
+    For multi-dimensional arrays, the return array will be reshaped in order to reverse its axes.
+    This approach is especially useful for some FORCE_PLATFORM parameters such as FORCE_PLATFORM:CORNERS and FORCE_PLATFORM:ORIGIN.
+    By reversing the axes of the arrays, the first dimension will indicate the index of the force plate.
+    However, there is an exception, FORCE_PLATFORM:CAL_MATRIX. See the reference [1].
+    
+    References
+    ----------
+    .. [1] https://www.c3d.org/HTML/Documents/forceplatformcalmatrix.htm
+
     """
     try:
         dict_dtype = {-1:str, 1:np.int8, 2:np.int32, 4:np.float32}
@@ -1513,6 +1525,7 @@ def get_group_params(itf, grp_name, par_names, desc=False, log=False):
             par_num_dim = itf.GetParameterNumberDim(par_idx)
             par_dim = [itf.GetParameterDimension(par_idx, j) for j in range(par_num_dim)]
             par_data = []
+            # special handling for 'ANALOG:OFFSET' parameter
             if grp_name=='ANALOG' and par_name=='OFFSET':
                 sig_format = get_analog_format(itf, log=log)
                 is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
@@ -1534,6 +1547,9 @@ def get_group_params(itf, grp_name, par_names, desc=False, log=False):
                     par_val = data_type(par_data[0])
                 else:
                     par_val = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+            # special handling for 'FORCE_PLATFORM:CAL_MATRIX' parameter
+            if grp_name=='FORCE_PLATFORM' and par_name=='CAL_MATRIX':
+                par_val = np.transpose(par_val, (0,2,1))
             if desc:
                 dict_info[par_name] = {}
                 dict_info[par_name].update({'VAL': par_val})
@@ -1604,7 +1620,17 @@ def get_dict_groups(itf, desc=False, tgt_grp_names=None, log=False):
     -------
     dict_grps : dict
         Dictionary of the C3D header information.
-
+        
+    Notes
+    -----
+    For multi-dimensional arrays, the return array will be reshaped in order to reverse its axes.
+    This approach is especially useful for some FORCE_PLATFORM parameters such as FORCE_PLATFORM:CORNERS and FORCE_PLATFORM:ORIGIN.
+    By reversing the axes of the arrays, the first dimension will indicate the index of the force plate.
+    However, there is an exception, FORCE_PLATFORM:CAL_MATRIX. See the reference [1].
+    
+    References
+    ----------
+    .. [1] https://www.c3d.org/HTML/Documents/forceplatformcalmatrix.htm
     """
     try:
         dict_dtype = {-1:str, 1:np.int8, 2:np.int32, 4:np.float32}
@@ -1632,6 +1658,7 @@ def get_dict_groups(itf, desc=False, tgt_grp_names=None, log=False):
             par_num_dim = itf.GetParameterNumberDim(i)
             par_dim = [itf.GetParameterDimension(i, j) for j in range(par_num_dim)]
             par_data = []
+            # special handling for 'ANALOG:OFFSET' parameter
             if grp_name=='ANALOG' and par_name=='OFFSET':
                 sig_format = get_analog_format(itf, log=log)
                 is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
@@ -1653,6 +1680,9 @@ def get_dict_groups(itf, desc=False, tgt_grp_names=None, log=False):
                     par_val = data_type(par_data[0])
                 else:
                     par_val = np.reshape(np.asarray(par_data, dtype=data_type), par_dim[::-1])
+            # special handling for 'FORCE_PLATFORM:CAL_MATRIX' parameter
+            if grp_name=='FORCE_PLATFORM' and par_name=='CAL_MATRIX':
+                par_val = np.transpose(par_val, (0,2,1))                    
             if desc:
                 dict_grps[grp_name][par_name] = {}
                 dict_grps[grp_name][par_name].update({'VAL': par_val})
@@ -1928,12 +1958,12 @@ def get_dict_forces(itf, desc=False, frame=False, time=False, log=False):
     try:
         start_fr = get_first_frame(itf, log=log)
         end_fr = get_last_frame(itf, log=log)
-        idx_force_used = itf.GetParameterIndex('FORCE_PLATFORM', 'USED')
-        if idx_force_used == -1: 
+        idx_fp_used = itf.GetParameterIndex('FORCE_PLATFORM', 'USED')
+        if idx_fp_used == -1: 
             if log: logger.warning(f'FORCE_PLATFORM:USED does not exist')
             return None
-        n_force_used = itf.GetParameterValue(idx_force_used, 0)
-        if n_force_used < 1:
+        n_fp_used = itf.GetParameterValue(idx_fp_used, 0)
+        if n_fp_used < 1:
             if log: logger.warning(f'FORCE_PLATFORM:USED is zero')
             return None
         idx_force_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
@@ -2028,12 +2058,270 @@ def get_fp_params(itf, log=False):
     """
     try:
         grp_name = 'FORCE_PLATFORM'
-        par_names = ['TYPE', 'USED', 'ORIGIN', 'CORNERS', 'CHANNEL']
+        par_names = ['TYPE', 'USED', 'ORIGIN', 'CORNERS', 'CHANNEL', 'CAL_MATRIX']
         return get_group_params(itf, grp_name, par_names, log=log)
     except pythoncom.com_error as err:
         if log: logger.error(err.excepinfo[2])
         raise
         
+def get_fp_output(itf, threshold=None, log=False):
+    """
+    Return forces, moments and COP(center of pressure) from the force plates.
+    
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    threshold: float, optional
+        Threshold value for Fz (vertical force component in the force plate local coordinate frame) to make all the output values as zero.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    dict
+        Dictionary of the desired output from force plates including forces, moments, and COP.
+        
+    Notes
+    -----
+    The output forces and moments are expressed based on the MKS system of units.
+    The unit of forces is N, whereas the unit of moments is Nm. The unit of COP is m.
+    The supported force plate types are 1, 2, 3 and 4. See the reference [1] for more details.
+    This function is an implementation of the following theoretical reference [2].   
+    
+    References
+    ----------
+    .. [1] https://www.c3d.org/HTML/Documents/theforceplatformgroup.htm
+    .. [2] http://www.kwon3d.com/theory/grf/cop.html
+    """    
+    try:
+        start_fr = get_first_frame(itf, log=log)
+        end_fr = get_last_frame(itf, log=log)
+        idx_fp_used = itf.GetParameterIndex('FORCE_PLATFORM', 'USED')
+        if idx_fp_used == -1: 
+            if log: logger.warning('FORCE_PLATFORM:USED does not exist')
+            return None
+        n_fp_used = itf.GetParameterValue(idx_fp_used, 0)
+        if n_fp_used < 1:
+            if log: logger.warning('FORCE_PLATFORM:USED is zero')
+            return None
+        idx_fp_chs = itf.GetParameterIndex('FORCE_PLATFORM', 'CHANNEL')
+        if idx_fp_chs == -1: 
+            if log: logger.warning('FORCE_PLATFORM:CHANNEL does not exist')
+            return None        
+        idx_analog_labels = itf.GetParameterIndex('ANALOG', 'LABELS')
+        if idx_analog_labels == -1:
+            if log: logger.warning('ANALOG:LABELS does not exist')
+            return None       
+        idx_analog_scale = itf.GetParameterIndex('ANALOG', 'SCALE')
+        if idx_analog_scale == -1:
+            if log: logger.warning('ANALOG:SCALE does not exist')
+            return None     
+        idx_analog_offset = itf.GetParameterIndex('ANALOG', 'OFFSET')
+        if idx_analog_offset == -1:
+            if log: logger.warning('ANALOG:OFFSET does not exist')
+            return None
+        idx_analog_units = itf.GetParameterIndex('ANALOG', 'UNITS')
+        if idx_analog_units == -1:
+            if log: logger.warning('ANALOG:UNITS does not exist')
+            n_analog_units = 0
+        else:
+            n_analog_units = itf.GetParameterLength(idx_analog_units)
+        idx_point_units = itf.GetParameterIndex('POINT', 'UNITS')
+        if idx_point_units == -1:
+            if log: logger.warning('ANALOG:UNITS does not exist')
+            point_unit = None
+        else:
+            point_unit = itf.GetParameterValue(idx_point_units, 0)
+        point_scale = 1.0 if point_unit=='m' else 0.001
+        fp_params = get_fp_params(itf, log=log)
+        fp_types = fp_params.get('TYPE', None)
+        fp_origins = fp_params.get('ORIGIN', None)
+        fp_corner_grps = fp_params.get('CORNERS', None)
+        fp_chs = fp_params.get('CHANNEL', None)
+        fp_cal_mats = fp_params.get('CAL_MATRIX', None)
+        fp_output = {}
+        for fp_idx in range(n_fp_used):
+            fp_type = fp_types[fp_idx]            
+            fp_org_raw = fp_origins[fp_idx]*point_scale
+            fp_z_check = -1.0 if fp_org_raw[2]>0 else 1.0
+            if fp_type == 1:
+                o_x = 0.0
+                o_y = 0.0
+                o_z = (-1.0)*fp_org_raw[2]*fp_z_check
+            elif fp_type in [2, 4]:
+                o_x = (-1.0)*fp_org_raw[0]*fp_z_check
+                o_y = (-1.0)*fp_org_raw[1]*fp_z_check
+                o_z = (-1.0)*fp_org_raw[2]*fp_z_check
+            elif fp_type == 3:
+                o_x = 0.0
+                o_y = 0.0
+                o_z = (-1.0)*fp_org_raw[2]*fp_z_check
+                fp_len_a = np.abs(fp_org_raw[0])
+                fp_len_b = np.abs(fp_org_raw[1])
+            fp_corners = fp_corner_grps[fp_idx]*point_scale
+            fp_cen = np.mean(fp_corners, axis=0)
+            fp_len_x = (np.linalg.norm(fp_corners[0]-fp_corners[1])+np.linalg.norm(fp_corners[3]-fp_corners[2]))*0.5
+            fp_len_y = (np.linalg.norm(fp_corners[0]-fp_corners[3])+np.linalg.norm(fp_corners[1]-fp_corners[2]))*0.5
+            fp_p0 = fp_cen
+            fp_p1 = 0.5*(fp_corners[0]+fp_corners[3])
+            fp_p2 = 0.5*(fp_corners[0]+fp_corners[1])
+            fp_v0 = fp_p1-fp_p0
+            fp_v1 = fp_p2-fp_p0
+            fp_v0_u = fp_v0/np.linalg.norm(fp_v0)
+            fp_v1_u = fp_v1/np.linalg.norm(fp_v1)
+            fp_v2 = np.cross(fp_v0_u, fp_v1_u)
+            fp_v2_u = fp_v2/np.linalg.norm(fp_v2)
+            fp_v_z = fp_v2_u
+            fp_v_x = fp_v0_u
+            fp_v_y = np.cross(fp_v_z, fp_v_x)
+            fp_rot_mat = np.column_stack([fp_v_x, fp_v_y, fp_v_z])
+            chs = fp_chs[fp_idx]
+            fp_data = {}
+            ch_data = {}
+            ch_unit_scale = {}
+            gen_scale = get_analog_gen_scale(itf, log=log)
+            sig_format = get_analog_format(itf, log=log)
+            is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
+            sig_offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
+            for idx, ch in enumerate(chs):
+                ch_idx = ch-1
+                ch_name = itf.GetParameterValue(idx_analog_labels, ch_idx)
+                ch_unit = ''
+                if ch_idx < n_analog_units:
+                    ch_unit = itf.GetParameterValue(idx_analog_units, ch_idx)
+                ch_scale = np.float32(itf.GetParameterValue(idx_analog_scale, ch_idx))
+                ch_offset = np.float32(sig_offset_dtype(itf.GetParameterValue(idx_analog_offset, ch_idx)))
+                ch_val = (np.asarray(itf.GetAnalogDataEx(ch_idx, start_fr, end_fr, '0', 0, 0, '0'), dtype=np.float32)-ch_offset)*ch_scale*gen_scale
+                # assign channel names
+                if fp_type == 1:
+                    # assume that the order of input analog channels are as follows:
+                    # 'FX', 'FY', 'FZ', 'PX', 'PY', 'TZ'
+                    ch_label = ['FX', 'FY', 'FZ', 'PX', 'PY', 'TZ'][idx]            
+                elif fp_type in [2, 4]:
+                    # assume that the order of input analog channels are as follows:
+                    # 'FX', 'FY', 'FZ', 'MX', 'MY', 'MZ'
+                    ch_label = ['FX', 'FY', 'FZ', 'MX', 'MY', 'MZ'][idx]  
+                elif fp_type == 3:
+                    # assume that the order of input analog channels are as follows:
+                    # 'FX12', 'FX34', 'FY14', 'FY23', 'FZ1', 'FZ2', 'FZ3', 'FZ4'
+                    ch_label = ['FX12', 'FX34', 'FY14', 'FY23', 'FZ1', 'FZ2', 'FZ3', 'FZ4'][idx]
+                # assign channel scale factors
+                if fp_type == 1:
+                    if ch_label.startswith('F'):
+                        # assume that the force unit is 'N'
+                        ch_unit_scale[ch_label] = 1.0
+                    elif ch_label.startswith('T'):
+                        # assume that the torque unit is 'Nmm'
+                        ch_unit_scale[ch_label] = 0.001
+                        if ch_unit=='Nm': ch_unit_scale[ch_label] = 1.0
+                    elif ch_label.startswith('P'):
+                        # assume that the position unit is 'mm'
+                        ch_unit_scale[ch_label] = 0.001
+                        if ch_unit=='m': ch_unit_scale[ch_label] = 1.0
+                elif fp_type in [2, 3, 4]:
+                    if ch_label.startswith('F'):
+                        # assume that the force unit is 'N'
+                        ch_unit_scale[ch_label] = 1.0
+                    elif ch_label.startswith('M'):
+                        # assume taht the torque unit is 'Nmm'
+                        ch_unit_scale[ch_label] = 0.001
+                        if ch_unit=='Nm': ch_unit_scale[ch_label] = 1.0
+                # assign channel values
+                ch_data[ch_label] = ch_val
+            if fp_type == 1:
+                cop_l_x_in = ch_data['PX']*ch_unit_scale['PX']
+                cop_l_y_in = ch_data['PY']*ch_unit_scale['PY']
+                t_z_in = ch_data['TZ']*ch_unit_scale['TZ']
+                fx = ch_data['FX']*ch_unit_scale['FX']
+                fy = ch_data['FY']*ch_unit_scale['FY']
+                fz = ch_data['FZ']*ch_unit_scale['FZ']
+                mx = (cop_l_y_in-o_y)*fz+o_z*fy
+                my = -o_z*fx-(cop_l_x_in-o_x)*fz
+                mz = (cop_l_x_in-o_x)*fy-(cop_l_y_in-o_y)*fx+t_z_in
+                f_raw = np.stack([fx, fy, fz], axis=1)
+                m_raw = np.stack([mx, my, mz], axis=1)
+            elif fp_type == 2:
+                f_raw = np.stack([ch_data['FX']*ch_unit_scale['FX'], ch_data['FY']*ch_unit_scale['FY'], ch_data['FZ']*ch_unit_scale['FZ']], axis=1)
+                m_raw = np.stack([ch_data['MX']*ch_unit_scale['MX'], ch_data['MY']*ch_unit_scale['MY'], ch_data['MZ']*ch_unit_scale['MZ']], axis=1)
+            elif fp_type == 4:
+                fp_cal_mat = fp_cal_mats[fp_idx]
+                fm_local = np.stack([ch_data['FX'], ch_data['FY'], ch_data['FZ'], ch_data['MX'], ch_data['MY'], ch_data['MZ']], axis=1)
+                fm_calib = np.dot(fp_cal_mat, fm_local.T).T
+                f_raw = np.stack([fm_calib[:,0]*ch_unit_scale['FX'], fm_calib[:,1]*ch_unit_scale['FY'], fm_calib[:,2]*ch_unit_scale['FZ']], axis=1)
+                m_raw = np.stack([fm_calib[:,3]*ch_unit_scale['MX'], fm_calib[:,4]*ch_unit_scale['MY'], fm_calib[:,5]*ch_unit_scale['MZ']], axis=1)
+            elif fp_type == 3:
+                fx12 = ch_data['FX12']*ch_unit_scale['FX12']
+                fx34 = ch_data['FX34']*ch_unit_scale['FX34']
+                fy14 = ch_data['FY14']*ch_unit_scale['FY14']
+                fy23 = ch_data['FY23']*ch_unit_scale['FY23']
+                fz1 = ch_data['FZ1']*ch_unit_scale['FZ1']
+                fz2 = ch_data['FZ2']*ch_unit_scale['FZ2']
+                fz3 = ch_data['FZ3']*ch_unit_scale['FZ3']
+                fz4 = ch_data['FZ4']*ch_unit_scale['FZ4']
+                fx = fx12+fx34
+                fy = fy14+fy23
+                fz = fz1+fz2+fz3+fz4
+                mx = fp_len_b*(fz1+fz2-fz3-fz4)
+                my = fp_len_a*(-fz1+fz2+fz3-fz4)
+                mz = fp_len_b*(-fx12+fx34)+fp_len_a*(fy14-fy23)
+                f_raw = np.stack([fx, fy, fz], axis=1)
+                m_raw = np.stack([mx, my, mz], axis=1)
+            if threshold is None:
+                fm_skip_mask = np.full((f_raw.shape[0],), False, dtype=bool)
+            else:
+                fm_skip_mask = np.abs(f_raw[:,2])<=threshold
+            zero_vals = np.zeros((f_raw.shape[0]), dtype=np.float32)
+            f_sensor_local = f_raw.copy()
+            m_sensor_local = m_raw.copy()
+            # filter local values by threshold
+            f_sensor_local[fm_skip_mask,:] = 0.0
+            m_sensor_local[fm_skip_mask,:] = 0.0
+            f_x = f_sensor_local[:,0]
+            f_y = f_sensor_local[:,1]
+            f_z = f_sensor_local[:,2]
+            m_x = m_sensor_local[:,0]
+            m_y = m_sensor_local[:,1]
+            m_z = m_sensor_local[:,2]
+            with np.errstate(invalid='ignore'):
+                # cop_l_x = np.nan_to_num(np.where(fm_skip_mask, 0, (-m_y+(-o_z)*f_x)/f_z+o_x))
+                # cop_l_y = np.nan_to_num(np.where(fm_skip_mask, 0, (m_x+(-o_z)*f_y)/f_z+o_y)) 
+                cop_l_x = np.clip(np.nan_to_num(np.where(fm_skip_mask, 0, (-m_y+(-o_z)*f_x)/f_z+o_x)), (-1)*fp_len_x*0.5, fp_len_x*0.5)
+                cop_l_y = np.clip(np.nan_to_num(np.where(fm_skip_mask, 0, (m_x+(-o_z)*f_y)/f_z+o_y)), (-1)*fp_len_y*0.5, fp_len_y*0.5)
+                cop_l_z = zero_vals
+            t_z = m_z-(cop_l_x-o_x)*f_y+(cop_l_y-o_y)*f_x
+            # values for the force plate local output
+            m_cop_local = np.stack([zero_vals, zero_vals, t_z], axis=1)
+            cop_surf_local = np.stack([cop_l_x, cop_l_y, cop_l_z], axis=1)
+            f_surf_local = f_sensor_local
+            m_surf_local = np.cross(np.array([o_x, o_y, o_z], dtype=np.float32), f_sensor_local)+m_sensor_local
+            # values for the force plate global output
+            m_cop_global = np.dot(fp_rot_mat, m_cop_local.T).T
+            cop_surf_global = np.dot(fp_rot_mat, cop_surf_local.T).T
+            f_surf_global = np.dot(fp_rot_mat, f_surf_local.T).T
+            m_surf_global = np.dot(fp_rot_mat, m_surf_local.T).T
+            # values for the lab output
+            m_cop_lab = m_cop_global
+            cop_lab = fp_cen+cop_surf_global
+            f_cop_lab = f_surf_global
+            # prepare return values        
+            fp_data.update({'F_SURF_LOCAL': f_surf_local})
+            fp_data.update({'M_SURF_LOCAL': m_surf_local})
+            fp_data.update({'COP_SURF_LOCAL': cop_surf_local})
+            fp_data.update({'F_SURF_GLOBAL': f_surf_global})
+            fp_data.update({'M_SURF_GLOBAL': m_surf_global})
+            fp_data.update({'COP_SURF_GLOBAL': cop_surf_global})
+            fp_data.update({'F_COP_LAB': f_cop_lab})            
+            fp_data.update({'M_COP_LAB': m_cop_lab})
+            fp_data.update({'COP_LAB': cop_lab})
+            if fp_type == 1:
+                fp_data.update({'COP_LOCAL_INPUT': np.stack([cop_l_x_in, cop_l_y_in, zero_vals], axis=1)})
+            fp_output.update({fp_idx: fp_data})   
+        return fp_output
+    except pythoncom.com_error as err:
+        if log: logger.error(err.excepinfo[2])
+        raise
+    
 def change_marker_name(itf, mkr_name_old, mkr_name_new, log=False):
     """
     Change the name of a marker.
