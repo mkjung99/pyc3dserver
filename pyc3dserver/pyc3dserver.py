@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, Dario Farina'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 import os
 import pythoncom
@@ -2277,7 +2277,7 @@ def get_fp_output(itf, threshold=0.0, filt_fc=None, filt_order=2, cop_nan_to_num
                 if lp_fc is None:
                     ch_data[ch_label] = ch_val
                 else:
-                    ch_data[ch_label] = filt_bw_lp(ch_val, lp_fc, analog_fps, order=filt_order)
+                    ch_data[ch_label] = np.float32(filt_bw_lp(ch_val, lp_fc, analog_fps, order=filt_order))
             if fp_type == 1:
                 cop_l_x_in = ch_data['PX']*ch_unit_scale['PX']
                 cop_l_y_in = ch_data['PY']*ch_unit_scale['PY']
