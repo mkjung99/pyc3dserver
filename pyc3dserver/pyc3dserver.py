@@ -30,6 +30,7 @@ import pythoncom
 import win32com.client as win32
 import math
 import numpy as np
+from scipy.signal import butter, filtfilt
 from scipy.interpolate import InterpolatedUnivariateSpline
 import re
 import logging
@@ -38,6 +39,32 @@ logger_name = 'pyc3dserver'
 logger = logging.getLogger(logger_name)
 logger.setLevel('CRITICAL')
 logger.addHandler(logging.NullHandler())
+
+def filt_bw_bp(data, fc_low, fc_high, fs, order=2):
+    nyq = 0.5 * fs
+    low = fc_low / nyq
+    high = fc_high / nyq
+    b, a = butter(order, [low, high], analog=False, btype='bandpass', output='ba')
+    axis = -1 if len(data.shape)==1 else 0
+    y = filtfilt(b, a, data, axis, padtype='odd', padlen=3*(max(len(b),len(a))-1))
+    return y
+
+def filt_bw_bs(data, fc_low, fc_high, fs, order=2):
+    nyq = 0.5 * fs
+    low = fc_low / nyq
+    high = fc_high / nyq
+    b, a = butter(order, [low, high], analog=False, btype='bandstop', output='ba')
+    axis = -1 if len(data.shape)==1 else 0
+    y = filtfilt(b, a, data, axis, padtype='odd', padlen=3*(max(len(b),len(a))-1))
+    return y
+
+def filt_bw_lp(data, fc_low, fs, order=2):
+    nyq = 0.5 * fs
+    low = fc_low / nyq
+    b, a = butter(order, low, analog=False, btype='lowpass', output='ba')
+    axis = -1 if len(data.shape)==1 else 0
+    y = filtfilt(b, a, data, axis, padtype='odd', padlen=3*(max(len(b),len(a))-1))
+    return y
 
 def init_logger(logger_lvl='WARNING', c_hdlr_lvl='WARNING', f_hdlr_lvl='ERROR', f_hdlr_f_mode='w', f_hdlr_f_path=None):
     """
@@ -2064,7 +2091,7 @@ def get_fp_params(itf, log=False):
         if log: logger.error(err.excepinfo[2])
         raise
         
-def get_fp_output(itf, threshold=None, log=False):
+def get_fp_output(itf, threshold=0.0, filt_fc=None, filt_order=2, cop_nan_to_num=True, log=False):
     """
     Return forces, moments and COP(center of pressure) from the force plates.
     
@@ -2072,8 +2099,14 @@ def get_fp_output(itf, threshold=None, log=False):
     ----------
     itf : win32com.client.CDispatch
         COM object of the C3Dserver.
-    threshold: float, optional
-        Threshold value for Fz (vertical force component in the force plate local coordinate frame) to make all the output values as zero.
+    threshold : float, optional
+        Threshold value of Fz (force plate local) to determine the frames where all forces and moments will be zero.        
+    filt_fc: float or list or tuple, optional
+        Cut-off frequency of zero-lag butterworth low-pass filters for each ananlog channel. The default is None.
+    filt_order: int, optional
+        Order of butterworth zero-lag low-pass filters for each analog channcel. The default is 2.        
+    cop_nan_to_num : bool, optional
+        Whether NaN values of COP will be converted to zero or not. The default is True.
     log : bool, optional
         Whether to write logs or not. The default is False.
 
@@ -2134,6 +2167,7 @@ def get_fp_output(itf, threshold=None, log=False):
         else:
             point_unit = itf.GetParameterValue(idx_point_units, 0)
         point_scale = 1.0 if point_unit=='m' else 0.001
+        analog_fps = get_analog_fps(itf, log=log)
         fp_params = get_fp_params(itf, log=log)
         fp_types = fp_params.get('TYPE', None)
         fp_origins = fp_params.get('ORIGIN', None)
@@ -2184,6 +2218,17 @@ def get_fp_output(itf, threshold=None, log=False):
             sig_format = get_analog_format(itf, log=log)
             is_sig_unsigned = (sig_format is not None) and (sig_format.upper()=='UNSIGNED')
             sig_offset_dtype = [np.int16, np.uint16][is_sig_unsigned]
+            if filt_fc is None:
+                filt_fcs = [None]*len(chs)
+            elif type(filt_fc) in [int, float]:
+                filt_fcs = [float(filt_fc)]*len(chs)
+            elif type(filt_fc) in [list, tuple]:
+                filt_fcs = list(filt_fc)
+            elif type(filt_fc)==np.ndarray:
+                if len(filt_fc)==1:
+                    filt_fcs = [filt_fc.item()]*len(chs)
+                else:
+                    filt_fcs = filt_fc.tolist()
             for idx, ch in enumerate(chs):
                 ch_idx = ch-1
                 ch_name = itf.GetParameterValue(idx_analog_labels, ch_idx)
@@ -2228,7 +2273,11 @@ def get_fp_output(itf, threshold=None, log=False):
                         ch_unit_scale[ch_label] = 0.001
                         if ch_unit=='Nm': ch_unit_scale[ch_label] = 1.0
                 # assign channel values
-                ch_data[ch_label] = ch_val
+                lp_fc = filt_fcs[idx]
+                if lp_fc is None:
+                    ch_data[ch_label] = ch_val
+                else:
+                    ch_data[ch_label] = filt_bw_lp(ch_val, lp_fc, analog_fps, order=filt_order)
             if fp_type == 1:
                 cop_l_x_in = ch_data['PX']*ch_unit_scale['PX']
                 cop_l_y_in = ch_data['PY']*ch_unit_scale['PY']
@@ -2267,11 +2316,8 @@ def get_fp_output(itf, threshold=None, log=False):
                 mz = fp_len_b*(-fx12+fx34)+fp_len_a*(fy14-fy23)
                 f_raw = np.stack([fx, fy, fz], axis=1)
                 m_raw = np.stack([mx, my, mz], axis=1)
-            if threshold is None:
-                fm_skip_mask = np.full((f_raw.shape[0],), False, dtype=bool)
-            else:
-                fm_skip_mask = np.abs(f_raw[:,2])<=threshold
             zero_vals = np.zeros((f_raw.shape[0]), dtype=np.float32)
+            fm_skip_mask = np.abs(f_raw[:,2])<=threshold
             f_sensor_local = f_raw.copy()
             m_sensor_local = m_raw.copy()
             # filter local values by threshold
@@ -2284,11 +2330,14 @@ def get_fp_output(itf, threshold=None, log=False):
             m_y = m_sensor_local[:,1]
             m_z = m_sensor_local[:,2]
             with np.errstate(invalid='ignore'):
-                # cop_l_x = np.nan_to_num(np.where(fm_skip_mask, 0, (-m_y+(-o_z)*f_x)/f_z+o_x))
-                # cop_l_y = np.nan_to_num(np.where(fm_skip_mask, 0, (m_x+(-o_z)*f_y)/f_z+o_y)) 
-                cop_l_x = np.clip(np.nan_to_num(np.where(fm_skip_mask, 0, (-m_y+(-o_z)*f_x)/f_z+o_x)), (-1)*fp_len_x*0.5, fp_len_x*0.5)
-                cop_l_y = np.clip(np.nan_to_num(np.where(fm_skip_mask, 0, (m_x+(-o_z)*f_y)/f_z+o_y)), (-1)*fp_len_y*0.5, fp_len_y*0.5)
-                cop_l_z = zero_vals
+                f_z_adj = np.where(fm_skip_mask, np.inf, f_z)
+                cop_l_x = np.where(fm_skip_mask, np.nan, np.clip((-m_y+(-o_z)*f_x)/f_z_adj+o_x, -fp_len_x*0.5, fp_len_x*0.5))
+                cop_l_y = np.where(fm_skip_mask, np.nan, np.clip((m_x+(-o_z)*f_y)/f_z_adj+o_y, -fp_len_y*0.5, fp_len_y*0.5))
+                cop_l_z = np.where(fm_skip_mask, np.nan, zero_vals)
+                if cop_nan_to_num:
+                    cop_l_x = np.nan_to_num(cop_l_x)
+                    cop_l_y = np.nan_to_num(cop_l_y)
+                    cop_l_z = np.nan_to_num(cop_l_z)
             t_z = m_z-(cop_l_x-o_x)*f_y+(cop_l_y-o_y)*f_x
             # values for the force plate local output
             m_cop_local = np.stack([zero_vals, zero_vals, t_z], axis=1)
