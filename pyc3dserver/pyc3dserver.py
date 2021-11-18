@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 __author__ = 'Moon Ki Jung, Dario Farina'
-__version__ = '0.1.2'
+__version__ = '0.2.0'
 
 import os
 import pythoncom
@@ -4032,3 +4032,158 @@ def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_nee
         if log: logger.error(err)
         raise
     
+def export_trc(itf, f_path, rot_mat=np.eye(3), filt_fc=None, filt_order=2, tgt_mkr_names=None, start_fr=None, end_fr=None, fmt='%.6f', log=False):
+    """
+    Export a TRC format file, which is compatible with OpenSim for markers.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    f_path : str
+        Path of the output TRC file to export.
+    rot_mat : list or ndarray
+        Transformation matrix between the original lab coordinate system and the desired lab coordinate system for export.
+    filt_fc : float, optional
+        Cut-off frequency of the zero-lag low-pass butterworth filter. The default is None.
+    filt_order : int, optional
+        Order of the zero-lag low-pass butterworth filter. The default is 2.
+    tgt_mkr_names : list, optional
+        Specific target marker names. The default is None.
+    start_fr : int, optional
+        Start frame for export. The default is None.
+    end_fr : int, optional
+        End frame for export. The default is None.
+    fmt : str, optional
+        A single format string for all marker trajectories.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    None
+        None.
+    
+    """    
+    dict_pts = get_dict_markers(itf, log=log)
+    orig_start_fr = 1
+    vid_fps = int(get_video_fps(itf, log=log))
+    if start_fr is None:
+        start_fr = get_first_frame(itf, log=log)
+    if end_fr is None:
+        end_fr = get_last_frame(itf, log=log)
+    n_vid_frs = end_fr-start_fr+1
+    vid_frs = np.linspace(start_fr, end_fr, n_vid_frs, dtype=np.int32)
+    vid_times = (vid_frs-orig_start_fr)/vid_fps
+    orig_vid_frs = get_video_frames(itf, log=log)
+    frs_sel_mask = np.logical_and(orig_vid_frs>=vid_frs[0], orig_vid_frs<=vid_frs[-1])
+    total_mkr_names = list(dict_pts['LABELS'])
+    if tgt_mkr_names is None:
+        mkr_names = total_mkr_names
+    else:
+        mkr_names = [x for x in list(tgt_mkr_names) if x in total_mkr_names]
+    mkr_unit = 'mm'
+    hdr_row0 = f'PathFileType\t4\t(X/Y/Z)\t{os.path.basename(f_path)}'
+    hdr_row1 = 'DataRate\tCameraRate\tNumFrames\tNumMarkers\tUnits\tOrigDataRate\tOrigDataStartFrame\tOrigNumFrames'
+    hdr_row2 = f'{vid_fps}\t{vid_fps}\t{n_vid_frs}\t{len(mkr_names)}\t{mkr_unit}\t{vid_fps}\t{orig_start_fr}\t{orig_vid_frs.shape[0]}'
+    hdr_row3 = 'Frame#\tTime\t'+'\t\t\t'.join(mkr_names)+'\t\t'
+    hdr_row4 = '\t\t'+'\t'.join([c+str(n) for n in list(range(1, len(mkr_names)+1)) for c in ['X', 'Y', 'Z']])
+    hdr_row5 = '\t'
+    hdr_str = '\n'.join([hdr_row0, hdr_row1, hdr_row2, hdr_row3, hdr_row4, hdr_row5])
+    output_data = np.zeros((n_vid_frs, 2+3*len(mkr_names)), dtype=float)
+    output_data[:,0] = vid_frs
+    output_data[:,1] = vid_times
+    for mkr_idx, mkr_name in enumerate(mkr_names):
+        mkr_pos_raw = np.dot(np.asarray(rot_mat), dict_pts['DATA']['POS'][mkr_name].T).T
+        if filt_fc is None:
+            mkr_pos = mkr_pos_raw
+        else:
+            mkr_pos = filt_bw_lp(mkr_pos_raw, filt_fc, vid_fps, order=filt_order)
+        output_data[:,2+3*mkr_idx:2+3*mkr_idx+3] = mkr_pos[frs_sel_mask,:]
+    fmt_str = f'%d\t{fmt}\t'+'\t'.join([fmt]*(3*len(mkr_names)))
+    np.savetxt(f_path, output_data, fmt=fmt_str, delimiter='\t', comments='', header=hdr_str)
+    return None
+
+def export_mot(itf, f_path, rot_mat=np.eye(3), filt_fc=None, filt_order=2, threshold=0.0, start_fr=None, end_fr=None, fmt='%.6f', log=False):
+    """
+    Export a MOT format file, which is compatible with OpenSim for force plates.
+
+    Parameters
+    ----------
+    itf : win32com.client.CDispatch
+        COM object of the C3Dserver.
+    f_path : str
+        Path of the output MOT file to export.
+    rot_mat : list or ndarray
+        Transformation matrix between the original lab coordinate system and the desired lab coordinate system for export.
+    filt_fc : float, optional
+        Cut-off frequency of the zero-lag low-pass butterworth filter. The default is None.
+    filt_order : int, optional
+        Order of the zero-lag low-pass butterworth filter. The default is 2.
+    threshold : float, optional
+        Threshold value of Fz (force plate local) to determine the frames where all forces and moments will be zero.
+    start_fr : int, optional
+        Start frame for export. The default is None.
+    end_fr : int, optional
+        End frame for export. The default is None.
+    fmt : str, optional
+        A single format string for all force plate related values.
+    log : bool, optional
+        Whether to write logs or not. The default is False.
+
+    Returns
+    -------
+    None
+        None.
+    
+    """      
+    orig_start_fr = 1
+    if start_fr is None:
+        start_fr = get_first_frame(itf, log=log)
+    if end_fr is None:
+        end_fr = get_last_frame(itf, log=log) 
+    vid_fps = int(get_video_fps(itf, log=log))
+    anal_fps = get_analog_fps(itf, log=log)
+    av_ratio = get_analog_video_ratio(itf, log=log)
+    n_vid_frs = end_fr-start_fr+1
+    vid_frs = np.linspace(start_fr, end_fr, n_vid_frs, dtype=np.int32)
+    vid_times = (vid_frs-orig_start_fr)/vid_fps
+    first_fr = get_first_frame(itf, log=log)
+    last_fr = get_last_frame(itf, log=log)
+    anal_start_t = np.float32(first_fr-orig_start_fr)/vid_fps
+    anal_end_t = np.float32(last_fr-orig_start_fr)/vid_fps+np.float32(av_ratio-1)/anal_fps
+    anal_steps = (last_fr-first_fr+1)*av_ratio
+    anal_times = np.linspace(start=anal_start_t, stop=anal_end_t, num=anal_steps, dtype=np.float32)
+    anal_sel_mask = np.logical_and(anal_times>vid_times[0]-(1.0/anal_fps), anal_times<vid_times[-1]+(1.0/anal_fps))
+    anal_sel_times = anal_times[anal_sel_mask]
+    fp_output = get_fp_output(itf, threshold=threshold, filt_fc=filt_fc, filt_order=filt_order, log=log)
+    cnt_fp = len(fp_output)
+    output_col_names = []
+    for i in range(cnt_fp):
+        output_col_names.append(f'ground_force{i+1}_vx')
+        output_col_names.append(f'ground_force{i+1}_vy')
+        output_col_names.append(f'ground_force{i+1}_vz')        
+        output_col_names.append(f'ground_force{i+1}_px')
+        output_col_names.append(f'ground_force{i+1}_py')
+        output_col_names.append(f'ground_force{i+1}_pz')
+        output_col_names.append(f'ground_torque{i+1}_x')
+        output_col_names.append(f'ground_torque{i+1}_y')
+        output_col_names.append(f'ground_torque{i+1}_z')
+    hdr_row0 = f'{os.path.basename(f_path)}'
+    hdr_row1 = f'datacolumns\t{1+9*cnt_fp}'
+    hdr_row2 = f'datarows\t{anal_sel_times.shape[0]}'
+    hdr_row3 = f'range\t{anal_sel_times[0]:{fmt.replace("%","")}}\t{anal_sel_times[-1]:{fmt.replace("%","")}}'
+    hdr_row4 = 'endheader'
+    hdr_row5 = 'time\t'+'\t'.join(output_col_names)
+    hdr_str = '\n'.join([hdr_row0, hdr_row1, hdr_row2, hdr_row3, hdr_row4, hdr_row5])
+    output_data = np.zeros((anal_sel_times.shape[0], len(output_col_names)+1), dtype=float)
+    output_data[:,0] = anal_sel_times
+    for i in range(cnt_fp):
+        cop_lab = fp_output[i]['COP_LAB'][anal_sel_mask,:]
+        f_cop_lab = fp_output[i]['F_COP_LAB'][anal_sel_mask,:]
+        m_cop_lab = fp_output[i]['M_COP_LAB'][anal_sel_mask,:]
+        output_data[:,9*i+1:9*i+4] = np.dot(np.asarray(rot_mat), f_cop_lab.T).T
+        output_data[:,9*i+4:9*i+7] = np.dot(np.asarray(rot_mat), cop_lab.T).T
+        output_data[:,9*i+7:9*i+10] = np.dot(np.asarray(rot_mat), m_cop_lab.T).T
+    np.savetxt(f_path, output_data, fmt=fmt, delimiter='\t', comments='', header=hdr_str)
+    return None
