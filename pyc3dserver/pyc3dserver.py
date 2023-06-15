@@ -1668,7 +1668,7 @@ def get_dict_groups(itf, desc=False, tgt_grp_names=None, log=False):
             grp_name = itf.GetGroupName(i)
             if (tgt_grp_names is not None) and (grp_name not in tgt_grp_names): continue
             grp_number = itf.GetGroupNumber(i)
-            dict_grp_names.update({np.absolute(grp_number, dtype=np.int): grp_name})
+            dict_grp_names.update({np.absolute(grp_number, dtype=int): grp_name})
             dict_grps[grp_name] = {}
         n_params = itf.GetNumberParameters()
         for i in range(n_params):
@@ -3887,7 +3887,7 @@ def fill_marker_gap_pattern(itf, tgt_mkr_name, dnr_mkr_name, search_span_offset=
             if gap.size == 0: continue
             # Skip if gap is either at the first or at the end of the entire frames.
             if gap.min()==0 or gap.max()==n_total_frs-1: continue
-            search_span = np.int(np.ceil(gap.size/2))+search_span_offset
+            search_span = int(np.ceil(gap.size/2))+search_span_offset
             gap_near_tgt_mkr_valid_mask = np.zeros((n_total_frs,), dtype=bool)
             for i in range(gap.min()-1, gap.min()-1-search_span, -1):
                 if i >= 0: gap_near_tgt_mkr_valid_mask[i]=True
@@ -3994,7 +3994,7 @@ def fill_marker_gap_interp(itf, tgt_mkr_name, k=3, search_span_offset=5, min_nee
         for gap in tgt_mkr_invalid_gaps:
             if gap.size == 0: continue
             if gap.min()==0 or gap.max()==n_total_frs-1: continue
-            search_span = np.int(np.ceil(gap.size/2))+search_span_offset
+            search_span = int(np.ceil(gap.size/2))+search_span_offset
             itpl_cand_frs_mask = np.zeros((n_total_frs,), dtype=bool)
             for i in range(gap.min()-1, gap.min()-1-search_span, -1):
                 if i>=0: itpl_cand_frs_mask[i]=True

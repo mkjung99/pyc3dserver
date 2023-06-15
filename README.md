@@ -1,3 +1,6 @@
+@psbiomech: Minor updates to resolve deprecated types removed as of numpy 1.24. Making this available until merge into master mkjung99/pyc3dserver.
+
+
 # PyC3Dserver
 Python interface of C3Dserver software for reading and editing C3D motion capture files.
 
