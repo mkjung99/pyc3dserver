@@ -1,4 +1,4 @@
-Minor updates to resolve deprecated types removed as of numpy 1.24. Making this available until merge into master mkjung99/pyc3dserver.
+@psbiomech: Minor updates to resolve deprecated types removed as of numpy 1.24. Making this available until merge into master mkjung99/pyc3dserver.
 
 
 # PyC3Dserver
